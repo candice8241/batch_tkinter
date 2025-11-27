@@ -48,7 +48,7 @@ class XRDProcessingGUI(GUIBase):
         self.radial_module = None
         self.single_crystal_module = None
 
-        # Containers for each module (packed/unpacked instead of destroyed)
+        # Containers for each module (prebuilt and stacked to avoid flicker)
         self.module_frames = {
             "powder": None,
             "single": None,
@@ -102,6 +102,9 @@ class XRDProcessingGUI(GUIBase):
         scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
 
         self.scrollable_frame = tk.Frame(canvas, bg=self.colors['bg'])
+        # Ensure stacked frames can expand to the available width/height
+        self.scrollable_frame.grid_rowconfigure(0, weight=1)
+        self.scrollable_frame.grid_columnconfigure(0, weight=1)
 
         self.scrollable_frame.bind(
             "<Configure>",
@@ -134,7 +137,9 @@ class XRDProcessingGUI(GUIBase):
 
     def _ensure_frame(self, name):
         if self.module_frames[name] is None:
-            self.module_frames[name] = tk.Frame(self.scrollable_frame, bg=self.colors['bg'])
+            frame = tk.Frame(self.scrollable_frame, bg=self.colors['bg'])
+            frame.grid(row=0, column=0, sticky="nsew")
+            self.module_frames[name] = frame
         return self.module_frames[name]
 
     def prebuild_modules(self):
@@ -166,10 +171,10 @@ class XRDProcessingGUI(GUIBase):
         self.single_tab.set_active(tab_name == "single")
         self.radial_tab.set_active(tab_name == "radial")
 
-        # Hide all module frames instead of destroying
+        # Lower all module frames instead of destroying/unpacking to avoid redraw flashes
         for frame in self.module_frames.values():
             if frame is not None:
-                frame.pack_forget()
+                frame.lower()
 
         target_frame = None
 
@@ -193,7 +198,7 @@ class XRDProcessingGUI(GUIBase):
                 self.single_crystal_module.setup_ui()
 
         if target_frame is not None:
-            target_frame.pack(fill=tk.BOTH, expand=True)
+            target_frame.lift()
             self.root.update_idletasks()
 
 
