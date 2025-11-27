@@ -358,6 +358,8 @@ class AzimuthalIntegrationModule(GUIBase):
         super().__init__()
         self.parent = parent
         self.root = root
+        self.main_frame = None
+        self._content_parent = None
         self._cleanup_lock = threading.Lock()
         self._is_destroyed = False
         self._init_variables()
@@ -447,12 +449,16 @@ class AzimuthalIntegrationModule(GUIBase):
 
     def setup_ui(self):
         """Setup UI with error handling"""
-        # Temporarily stop widget updates to prevent flickering
-        try:
-            for widget in self.parent.winfo_children():
-                widget.destroy()
-        except:
-            pass
+        if self.main_frame is not None and self.main_frame.winfo_exists():
+            self.main_frame.pack(fill=tk.BOTH, expand=True)
+            try:
+                self.root.update_idletasks()
+            except Exception:
+                pass
+            return
+
+        self.main_frame = tk.Frame(self.parent, bg=self.colors['bg'])
+        self._content_parent = self.main_frame
 
         self._create_reference_section()
         self._create_separated_settings_sections()
@@ -460,15 +466,21 @@ class AzimuthalIntegrationModule(GUIBase):
         self._create_progress_section()
         self._create_log_section()
 
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
         # Update UI after all widgets are created
         try:
             self.parent.update_idletasks()
         except:
             pass
 
+    def _section_parent(self):
+        if self._content_parent is not None and self._content_parent.winfo_exists():
+            return self._content_parent
+        return self.parent
+
     def _create_reference_section(self):
         """Reference with larger font and CENTERED"""
-        ref_frame = tk.Frame(self.parent, bg=self.colors['bg'])
+        ref_frame = tk.Frame(self._section_parent(), bg=self.colors['bg'])
         ref_frame.pack(fill=tk.X, padx=0, pady=(10, 10))
 
         ref_card = self.create_card_frame(ref_frame)
@@ -496,7 +508,7 @@ class AzimuthalIntegrationModule(GUIBase):
     def _create_separated_settings_sections(self):
         """Create two independent modules side by side: Integration Settings (left) and Azimuthal Angle Settings (right)"""
         # Main container for both sections
-        sections_frame = tk.Frame(self.parent, bg=self.colors['bg'])
+        sections_frame = tk.Frame(self._section_parent(), bg=self.colors['bg'])
         sections_frame.pack(fill=tk.X, padx=0, pady=(0, 10))
 
         # Container for left-right layout
@@ -650,7 +662,7 @@ class AzimuthalIntegrationModule(GUIBase):
 
     def _create_merged_settings_section(self):
         """Merged card with Integration Settings (left) and Azimuthal Angle Settings (right)"""
-        merged_frame = tk.Frame(self.parent, bg=self.colors['bg'])
+        merged_frame = tk.Frame(self._section_parent(), bg=self.colors['bg'])
         merged_frame.pack(fill=tk.X, padx=0, pady=(0, 10))
 
         # Card frame
@@ -817,7 +829,7 @@ class AzimuthalIntegrationModule(GUIBase):
 
     def _create_io_section(self):
         """File Configuration section - matching powder_module style"""
-        io_frame = tk.Frame(self.parent, bg=self.colors['bg'])
+        io_frame = tk.Frame(self._section_parent(), bg=self.colors['bg'])
         io_frame.pack(fill=tk.X, padx=0, pady=(0, 10))
 
         # Card frame
@@ -1067,7 +1079,7 @@ class AzimuthalIntegrationModule(GUIBase):
 
     def _create_azimuthal_section(self):
         """Azimuthal settings"""
-        azimuth_frame = tk.Frame(self.parent, bg=self.colors['bg'])
+        azimuth_frame = tk.Frame(self._section_parent(), bg=self.colors['bg'])
         azimuth_frame.pack(fill=tk.X, padx=0, pady=(0, 10))
 
         card = self.create_card_frame(azimuth_frame)
@@ -1134,7 +1146,7 @@ class AzimuthalIntegrationModule(GUIBase):
     def _create_output_options_section(self):
         """Output format and stacked plot options section with Run button on the right"""
         # Main container for both sections
-        sections_frame = tk.Frame(self.parent, bg=self.colors['bg'])
+        sections_frame = tk.Frame(self._section_parent(), bg=self.colors['bg'])
         sections_frame.pack(fill=tk.X, padx=0, pady=(0, 10))
 
         # Container for left-right layout
@@ -1317,7 +1329,7 @@ class AzimuthalIntegrationModule(GUIBase):
 
     def _create_run_button_section(self):
         """Run button directly on background"""
-        center_container = tk.Frame(self.parent, bg=self.colors['bg'])
+        center_container = tk.Frame(self._section_parent(), bg=self.colors['bg'])
         center_container.pack(fill=tk.X, pady=(0, 10))
 
         self.run_btn = tk.Button(center_container, text="🌸 Run Azimuthal Integration",
@@ -1328,7 +1340,7 @@ class AzimuthalIntegrationModule(GUIBase):
         self.run_btn.pack()
 
     def _create_progress_section(self):
-        prog_frame = tk.Frame(self.parent, bg=self.colors['bg'])
+        prog_frame = tk.Frame(self._section_parent(), bg=self.colors['bg'])
         prog_frame.pack(fill=tk.X, padx=0, pady=(10, 10))
 
         self.progress_bar = CuteSheepProgressBar(prog_frame, width=780, height=80)
@@ -1336,7 +1348,7 @@ class AzimuthalIntegrationModule(GUIBase):
 
     def _create_log_section(self):
         """Log with larger font"""
-        log_frame = tk.Frame(self.parent, bg=self.colors['bg'])
+        log_frame = tk.Frame(self._section_parent(), bg=self.colors['bg'])
         log_frame.pack(fill=tk.BOTH, expand=True, padx=0, pady=(0, 20))
 
         card = self.create_card_frame(log_frame)
