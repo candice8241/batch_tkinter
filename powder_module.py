@@ -942,9 +942,20 @@ class PowderXRDModule(GUIBase):
         self.log("✨ Interactive peak fitting GUI opened in new window")
 
         def on_closing():
-            self.interactive_fitting_window.destroy()
-            self.interactive_fitting_window = None
-            self.log("📊 Interactive fitting window closed")
+            try:
+                self.interactive_fitting_window.withdraw()
+            except Exception:
+                pass
+
+            def _finalize_close():
+                try:
+                    self.interactive_fitting_window.destroy()
+                finally:
+                    self.interactive_fitting_window = None
+                    self.log("📊 Interactive fitting window closed")
+
+            # Run destroy after idle to avoid taskbar flash when closing
+            self.interactive_fitting_window.after_idle(_finalize_close)
 
         self.interactive_fitting_window.protocol("WM_DELETE_WINDOW", on_closing)
 
@@ -984,10 +995,19 @@ class PowderXRDModule(GUIBase):
 
         def on_close():
             try:
-                self.interactive_eos_window.destroy()
-            finally:
-                self.interactive_eos_window = None
-                self.log("🌌 Interactive EoS GUI closed")
+                self.interactive_eos_window.withdraw()
+            except Exception:
+                pass
+
+            def _finalize_close():
+                try:
+                    self.interactive_eos_window.destroy()
+                finally:
+                    self.interactive_eos_window = None
+                    self.log("🌌 Interactive EoS GUI closed")
+
+            # Delay destroy to prevent taskbar flashing when releasing focus
+            self.interactive_eos_window.after_idle(_finalize_close)
 
         self.interactive_eos_window.protocol("WM_DELETE_WINDOW", on_close)
 
