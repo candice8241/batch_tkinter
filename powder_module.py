@@ -250,6 +250,74 @@ class PowderXRDModule(GUIBase):
         self._is_shutting_down = False
         self._cleanup_lock = threading.Lock()
 
+    def _gentle_reveal_window(self, window: tk.Toplevel, initial_delay: int = 80,
+                               duration: int = 260, steps: int = 8):
+        """Reveal a toplevel gradually to avoid fast flashes when showing it."""
+        try:
+            window.attributes("-alpha", 0.0)
+        except Exception:
+            pass
+
+        try:
+            window.deiconify()
+            window.update_idletasks()
+        except Exception:
+            return
+
+        # Fade in with evenly spaced steps; slower pacing prevents rapid refresh flicker
+        try:
+            step_size = 1.0 / max(1, steps)
+            interval = max(15, duration // max(1, steps))
+
+            def _fade(idx=1):
+                try:
+                    window.attributes("-alpha", min(1.0, idx * step_size))
+                except Exception:
+                    pass
+
+                if idx < steps:
+                    window.after(interval, lambda: _fade(idx + 1))
+                else:
+                    try:
+                        window.attributes("-alpha", 1.0)
+                        window.lift()
+                        window.focus_force()
+                    except Exception:
+                        pass
+
+            window.after(initial_delay, _fade)
+        except Exception:
+            pass
+
+    def _gentle_hide_window(self, window: tk.Toplevel, duration: int = 220, steps: int = 7):
+        """Fade a toplevel out before withdrawing to keep the taskbar calm."""
+        try:
+            step_size = 1.0 / max(1, steps)
+            interval = max(15, duration // max(1, steps))
+
+            def _fade(idx=steps):
+                try:
+                    window.attributes("-alpha", max(0.0, idx * step_size))
+                except Exception:
+                    pass
+
+                if idx > 0:
+                    window.after(interval, lambda: _fade(idx - 1))
+                else:
+                    try:
+                        window.attributes("-alpha", 0.0)
+                        window.withdraw()
+                        window.update_idletasks()
+                    except Exception:
+                        pass
+
+            _fade()
+        except Exception:
+            try:
+                window.withdraw()
+            except Exception:
+                pass
+
     def _init_variables(self):
         """Initialize all Tkinter variables - THREAD SAFE with explicit master binding"""
         # Integration and fitting variables
@@ -893,22 +961,10 @@ class PowderXRDModule(GUIBase):
 
     def open_interactive_fitting(self):
         """Open the interactive peak fitting GUI in a new window"""
-        def _show_window(window: tk.Toplevel):
-            """Smoothly reveal a reused tool window without taskbar flicker."""
-            try:
-                window.attributes("-alpha", 0.0)
-                window.deiconify()
-                window.update_idletasks()
-                window.after(10, lambda: window.attributes("-alpha", 1.0))
-                window.lift()
-                window.focus_force()
-            except Exception:
-                pass
-
         if self.interactive_fitting_window is not None:
             try:
                 if self.interactive_fitting_window.winfo_exists():
-                    _show_window(self.interactive_fitting_window)
+                    self._gentle_reveal_window(self.interactive_fitting_window)
                     self.log("📊 Interactive fitting window brought to front")
                     return
             except Exception:
@@ -949,17 +1005,12 @@ class PowderXRDModule(GUIBase):
 
         PeakFittingGUI(self.interactive_fitting_window)
 
-        _show_window(self.interactive_fitting_window)
+        self._gentle_reveal_window(self.interactive_fitting_window)
 
         self.log("✨ Interactive peak fitting GUI opened in new window")
 
         def on_closing():
-            try:
-                self.interactive_fitting_window.attributes("-alpha", 0.0)
-                self.interactive_fitting_window.withdraw()
-                self.interactive_fitting_window.update_idletasks()
-            except Exception:
-                pass
+            self._gentle_hide_window(self.interactive_fitting_window)
 
             # Keep the window around for instant reopen without taskbar flashes
             self.log("📊 Interactive fitting window hidden")
@@ -968,22 +1019,10 @@ class PowderXRDModule(GUIBase):
 
     def open_interactive_eos_gui(self):
         """Open the interactive EoS GUI in a separate window"""
-        def _show_window(window: tk.Toplevel):
-            """Reveal a reused EoS window smoothly without taskbar flashes."""
-            try:
-                window.attributes("-alpha", 0.0)
-                window.deiconify()
-                window.update_idletasks()
-                window.after(10, lambda: window.attributes("-alpha", 1.0))
-                window.lift()
-                window.focus_force()
-            except Exception:
-                pass
-
         if self.interactive_eos_window is not None:
             try:
                 if self.interactive_eos_window.winfo_exists():
-                    _show_window(self.interactive_eos_window)
+                    self._gentle_reveal_window(self.interactive_eos_window)
                     self.log("🌌 Interactive EoS GUI brought to front")
                     return
             except Exception:
@@ -1010,15 +1049,10 @@ class PowderXRDModule(GUIBase):
         # Initialize the interactive EoS GUI within the Toplevel
         InteractiveEoSGUI(self.interactive_eos_window)
 
-        _show_window(self.interactive_eos_window)
+        self._gentle_reveal_window(self.interactive_eos_window)
 
         def on_close():
-            try:
-                self.interactive_eos_window.attributes("-alpha", 0.0)
-                self.interactive_eos_window.withdraw()
-                self.interactive_eos_window.update_idletasks()
-            except Exception:
-                pass
+            self._gentle_hide_window(self.interactive_eos_window)
 
             # Keep for instant reuse without re-creating taskbar entries
             self.log("🌌 Interactive EoS GUI hidden")
