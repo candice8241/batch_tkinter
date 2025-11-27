@@ -47,6 +47,11 @@ class XRDProcessingGUI(GUIBase):
         self.powder_module = None
         self.radial_module = None
         self.single_crystal_module = None
+        self.active_tab = "powder"
+        self._tab_containers = {}
+
+        # Repaint the current tab when the app is restored from the taskbar
+        self.root.bind("<Map>", self._on_root_restored)
 
         # Setup UI
         self.setup_ui()
@@ -134,25 +139,63 @@ class XRDProcessingGUI(GUIBase):
         self.single_tab.set_active(tab_name == "single")
         self.radial_tab.set_active(tab_name == "radial")
 
-        # Clear existing content
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
+        self.active_tab = tab_name
+
+        # Pre-build the requested tab off-screen so the user never sees partial layouts
+        target_container = self._tab_container(tab_name)
 
         # Load appropriate module
         if tab_name == "powder":
             if self.powder_module is None:
-                self.powder_module = PowderXRDModule(self.scrollable_frame, self.root)
-            self.powder_module.setup_ui()
+                self.powder_module = PowderXRDModule(target_container, self.root)
+                self.powder_module.setup_ui()
+            else:
+                self.powder_module.setup_ui()
 
         elif tab_name == "radial":
             if self.radial_module is None:
-                self.radial_module = AzimuthalIntegrationModule(self.scrollable_frame, self.root)
-            self.radial_module.setup_ui()
+                self.radial_module = AzimuthalIntegrationModule(target_container, self.root)
+                self.radial_module.setup_ui()
+            else:
+                self.radial_module.setup_ui()
 
         elif tab_name == "single":
             if self.single_crystal_module is None:
-                self.single_crystal_module = SingleCrystalModule(self.scrollable_frame, self.root)
-            self.single_crystal_module.setup_ui()
+                self.single_crystal_module = SingleCrystalModule(target_container, self.root)
+                self.single_crystal_module.setup_ui()
+            else:
+                self.single_crystal_module.setup_ui()
+
+        # Swap visible content only after the tab is fully assembled
+        for widget in self.scrollable_frame.winfo_children():
+            if widget is not target_container:
+                widget.pack_forget()
+
+        if not target_container.winfo_ismapped():
+            target_container.pack(fill=tk.BOTH, expand=True)
+
+        try:
+            self.root.update_idletasks()
+        except Exception:
+            pass
+
+    def _on_root_restored(self, _event=None):
+        """Refresh the visible tab after returning from the taskbar to avoid black flashes."""
+        def _refresh():
+            if self.active_tab == "powder" and self.powder_module:
+                self.powder_module.refresh_visibility()
+            elif self.active_tab == "radial" and self.radial_module and hasattr(self.radial_module, "refresh_visibility"):
+                self.radial_module.refresh_visibility()
+            elif self.active_tab == "single" and self.single_crystal_module and hasattr(self.single_crystal_module, "refresh_visibility"):
+                self.single_crystal_module.refresh_visibility()
+
+        self.root.after(60, _refresh)
+
+    def _tab_container(self, name: str):
+        """Return a persistent container for each tab so first opens are seamless."""
+        if name not in self._tab_containers or not self._tab_containers[name].winfo_exists():
+            self._tab_containers[name] = tk.Frame(self.scrollable_frame, bg=self.colors['bg'])
+        return self._tab_containers[name]
 
 
 def launch_main_app():
