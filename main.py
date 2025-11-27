@@ -48,6 +48,13 @@ class XRDProcessingGUI(GUIBase):
         self.radial_module = None
         self.single_crystal_module = None
 
+        # Containers for each module (packed/unpacked instead of destroyed)
+        self.module_frames = {
+            "powder": None,
+            "single": None,
+            "radial": None
+        }
+
         # Setup UI
         self.setup_ui()
 
@@ -134,25 +141,40 @@ class XRDProcessingGUI(GUIBase):
         self.single_tab.set_active(tab_name == "single")
         self.radial_tab.set_active(tab_name == "radial")
 
-        # Clear existing content
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
+        # Hide all module frames instead of destroying
+        for frame in self.module_frames.values():
+            if frame is not None:
+                frame.pack_forget()
 
-        # Load appropriate module
+        def ensure_frame(name):
+            if self.module_frames[name] is None:
+                self.module_frames[name] = tk.Frame(self.scrollable_frame, bg=self.colors['bg'])
+            return self.module_frames[name]
+
+        target_frame = None
+
+        # Load appropriate module (create once, then just re-pack to avoid flicker)
         if tab_name == "powder":
+            target_frame = ensure_frame("powder")
             if self.powder_module is None:
-                self.powder_module = PowderXRDModule(self.scrollable_frame, self.root)
-            self.powder_module.setup_ui()
+                self.powder_module = PowderXRDModule(target_frame, self.root)
+                self.powder_module.setup_ui()
 
         elif tab_name == "radial":
+            target_frame = ensure_frame("radial")
             if self.radial_module is None:
-                self.radial_module = AzimuthalIntegrationModule(self.scrollable_frame, self.root)
-            self.radial_module.setup_ui()
+                self.radial_module = AzimuthalIntegrationModule(target_frame, self.root)
+                self.radial_module.setup_ui()
 
         elif tab_name == "single":
+            target_frame = ensure_frame("single")
             if self.single_crystal_module is None:
-                self.single_crystal_module = SingleCrystalModule(self.scrollable_frame, self.root)
-            self.single_crystal_module.setup_ui()
+                self.single_crystal_module = SingleCrystalModule(target_frame, self.root)
+                self.single_crystal_module.setup_ui()
+
+        if target_frame is not None:
+            target_frame.pack(fill=tk.BOTH, expand=True)
+            self.root.update_idletasks()
 
 
 def launch_main_app():
