@@ -126,8 +126,33 @@ class XRDProcessingGUI(GUIBase):
 
         self.canvas = canvas
 
+        # Prebuild module UIs so the first visible load is already prepared
+        self.prebuild_modules()
+
         # Show powder tab by default
         self.switch_tab("powder")
+
+    def _ensure_frame(self, name):
+        if self.module_frames[name] is None:
+            self.module_frames[name] = tk.Frame(self.scrollable_frame, bg=self.colors['bg'])
+        return self.module_frames[name]
+
+    def prebuild_modules(self):
+        """Construct all module frames and their UIs ahead of first use to avoid initial flash."""
+        powder_frame = self._ensure_frame("powder")
+        if self.powder_module is None:
+            self.powder_module = PowderXRDModule(powder_frame, self.root)
+            self.powder_module.setup_ui()
+
+        radial_frame = self._ensure_frame("radial")
+        if self.radial_module is None:
+            self.radial_module = AzimuthalIntegrationModule(radial_frame, self.root)
+            self.radial_module.setup_ui()
+
+        single_frame = self._ensure_frame("single")
+        if self.single_crystal_module is None:
+            self.single_crystal_module = SingleCrystalModule(single_frame, self.root)
+            self.single_crystal_module.setup_ui()
 
     def switch_tab(self, tab_name):
         """
@@ -146,28 +171,23 @@ class XRDProcessingGUI(GUIBase):
             if frame is not None:
                 frame.pack_forget()
 
-        def ensure_frame(name):
-            if self.module_frames[name] is None:
-                self.module_frames[name] = tk.Frame(self.scrollable_frame, bg=self.colors['bg'])
-            return self.module_frames[name]
-
         target_frame = None
 
         # Load appropriate module (create once, then just re-pack to avoid flicker)
         if tab_name == "powder":
-            target_frame = ensure_frame("powder")
+            target_frame = self._ensure_frame("powder")
             if self.powder_module is None:
                 self.powder_module = PowderXRDModule(target_frame, self.root)
                 self.powder_module.setup_ui()
 
         elif tab_name == "radial":
-            target_frame = ensure_frame("radial")
+            target_frame = self._ensure_frame("radial")
             if self.radial_module is None:
                 self.radial_module = AzimuthalIntegrationModule(target_frame, self.root)
                 self.radial_module.setup_ui()
 
         elif tab_name == "single":
-            target_frame = ensure_frame("single")
+            target_frame = self._ensure_frame("single")
             if self.single_crystal_module is None:
                 self.single_crystal_module = SingleCrystalModule(target_frame, self.root)
                 self.single_crystal_module.setup_ui()
