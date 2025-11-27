@@ -47,6 +47,10 @@ class XRDProcessingGUI(GUIBase):
         self.powder_module = None
         self.radial_module = None
         self.single_crystal_module = None
+        self.active_tab = "powder"
+
+        # Repaint the current tab when the app is restored from the taskbar
+        self.root.bind("<Map>", self._on_root_restored)
 
         # Setup UI
         self.setup_ui()
@@ -134,6 +138,8 @@ class XRDProcessingGUI(GUIBase):
         self.single_tab.set_active(tab_name == "single")
         self.radial_tab.set_active(tab_name == "radial")
 
+        self.active_tab = tab_name
+
         # Hide existing content without destroying widgets to keep tabs instant
         for widget in self.scrollable_frame.winfo_children():
             widget.pack_forget()
@@ -153,6 +159,18 @@ class XRDProcessingGUI(GUIBase):
             if self.single_crystal_module is None:
                 self.single_crystal_module = SingleCrystalModule(self.scrollable_frame, self.root)
             self.single_crystal_module.setup_ui()
+
+    def _on_root_restored(self, _event=None):
+        """Refresh the visible tab after returning from the taskbar to avoid black flashes."""
+        def _refresh():
+            if self.active_tab == "powder" and self.powder_module:
+                self.powder_module.refresh_visibility()
+            elif self.active_tab == "radial" and self.radial_module and hasattr(self.radial_module, "refresh_visibility"):
+                self.radial_module.refresh_visibility()
+            elif self.active_tab == "single" and self.single_crystal_module and hasattr(self.single_crystal_module, "refresh_visibility"):
+                self.single_crystal_module.refresh_visibility()
+
+        self.root.after(60, _refresh)
 
 
 def launch_main_app():

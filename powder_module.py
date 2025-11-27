@@ -250,73 +250,46 @@ class PowderXRDModule(GUIBase):
         self._is_shutting_down = False
         self._cleanup_lock = threading.Lock()
 
-    def _gentle_reveal_window(self, window: tk.Toplevel, initial_delay: int = 80,
-                               duration: int = 260, steps: int = 8):
-        """Reveal a toplevel gradually to avoid fast flashes when showing it."""
+    def _show_window_immediately(self, window: tk.Toplevel):
+        """Display a toplevel right away without animated fades."""
+        try:
+            window.attributes("-alpha", 1.0)
+        except Exception:
+            pass
+
+        try:
+            window.deiconify()
+            window.lift()
+            window.focus_force()
+            window.update_idletasks()
+        except Exception:
+            pass
+
+    def _hide_window_immediately(self, window: tk.Toplevel):
+        """Withdraw a toplevel instantly while keeping it reusable."""
         try:
             window.attributes("-alpha", 0.0)
         except Exception:
             pass
 
         try:
-            window.deiconify()
+            window.withdraw()
             window.update_idletasks()
-        except Exception:
-            return
-
-        # Fade in with evenly spaced steps; slower pacing prevents rapid refresh flicker
-        try:
-            step_size = 1.0 / max(1, steps)
-            interval = max(15, duration // max(1, steps))
-
-            def _fade(idx=1):
-                try:
-                    window.attributes("-alpha", min(1.0, idx * step_size))
-                except Exception:
-                    pass
-
-                if idx < steps:
-                    window.after(interval, lambda: _fade(idx + 1))
-                else:
-                    try:
-                        window.attributes("-alpha", 1.0)
-                        window.lift()
-                        window.focus_force()
-                    except Exception:
-                        pass
-
-            window.after(initial_delay, _fade)
         except Exception:
             pass
 
-    def _gentle_hide_window(self, window: tk.Toplevel, duration: int = 220, steps: int = 7):
-        """Fade a toplevel out before withdrawing to keep the taskbar calm."""
+    def refresh_visibility(self):
+        """Ensure the main frame is visible and repainted after restoring the app."""
+        if self.main_frame is None:
+            return
+
         try:
-            step_size = 1.0 / max(1, steps)
-            interval = max(15, duration // max(1, steps))
-
-            def _fade(idx=steps):
-                try:
-                    window.attributes("-alpha", max(0.0, idx * step_size))
-                except Exception:
-                    pass
-
-                if idx > 0:
-                    window.after(interval, lambda: _fade(idx - 1))
-                else:
-                    try:
-                        window.attributes("-alpha", 0.0)
-                        window.withdraw()
-                        window.update_idletasks()
-                    except Exception:
-                        pass
-
-            _fade()
+            if not self.main_frame.winfo_ismapped():
+                self.main_frame.pack(fill=tk.BOTH, expand=True)
+            self.main_frame.update_idletasks()
+            self.root.after_idle(self.main_frame.update)
         except Exception:
-            try:
-                window.withdraw()
-            except Exception:
-                pass
+            pass
 
     def _init_variables(self):
         """Initialize all Tkinter variables - THREAD SAFE with explicit master binding"""
@@ -964,7 +937,7 @@ class PowderXRDModule(GUIBase):
         if self.interactive_fitting_window is not None:
             try:
                 if self.interactive_fitting_window.winfo_exists():
-                    self._gentle_reveal_window(self.interactive_fitting_window)
+                    self._show_window_immediately(self.interactive_fitting_window)
                     self.log("📊 Interactive fitting window brought to front")
                     return
             except Exception:
@@ -1005,12 +978,12 @@ class PowderXRDModule(GUIBase):
 
         PeakFittingGUI(self.interactive_fitting_window)
 
-        self._gentle_reveal_window(self.interactive_fitting_window)
+        self._show_window_immediately(self.interactive_fitting_window)
 
         self.log("✨ Interactive peak fitting GUI opened in new window")
 
         def on_closing():
-            self._gentle_hide_window(self.interactive_fitting_window)
+            self._hide_window_immediately(self.interactive_fitting_window)
 
             # Keep the window around for instant reopen without taskbar flashes
             self.log("📊 Interactive fitting window hidden")
@@ -1022,7 +995,7 @@ class PowderXRDModule(GUIBase):
         if self.interactive_eos_window is not None:
             try:
                 if self.interactive_eos_window.winfo_exists():
-                    self._gentle_reveal_window(self.interactive_eos_window)
+                    self._show_window_immediately(self.interactive_eos_window)
                     self.log("🌌 Interactive EoS GUI brought to front")
                     return
             except Exception:
@@ -1049,10 +1022,10 @@ class PowderXRDModule(GUIBase):
         # Initialize the interactive EoS GUI within the Toplevel
         InteractiveEoSGUI(self.interactive_eos_window)
 
-        self._gentle_reveal_window(self.interactive_eos_window)
+        self._show_window_immediately(self.interactive_eos_window)
 
         def on_close():
-            self._gentle_hide_window(self.interactive_eos_window)
+            self._hide_window_immediately(self.interactive_eos_window)
 
             # Keep for instant reuse without re-creating taskbar entries
             self.log("🌌 Interactive EoS GUI hidden")
