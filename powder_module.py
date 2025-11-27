@@ -228,6 +228,9 @@ class PowderXRDModule(GUIBase):
 
         # Use weak references to avoid circular references
         self._root_ref = weakref.ref(root)
+
+        # Preserve the main frame so re-opening the tab doesn't rebuild widgets
+        self.main_frame = None
         
         # Initialize variables BEFORE any other setup
         self._init_variables()
@@ -386,56 +389,58 @@ class PowderXRDModule(GUIBase):
 
     def setup_ui(self):
         """Setup the complete powder XRD UI"""
-        # Build the UI without intermediate placeholders to avoid flicker when opening
-        main_frame = tk.Frame(self.parent, bg=self.colors['bg'])
-        # Container for all content
-        self.dynamic_frame = tk.Frame(main_frame, bg=self.colors['bg'])
-        self.dynamic_frame.pack(fill=tk.BOTH, expand=True)
+        # Build the UI only once, then reuse the same frame to avoid flashes
+        if self.main_frame is None:
+            self.main_frame = tk.Frame(self.parent, bg=self.colors['bg'])
 
-        # Build integration and analysis sections inline
-        self.integration_frame = tk.Frame(self.dynamic_frame, bg=self.colors['bg'])
-        self.setup_integration_module(self.integration_frame)
-        self.integration_frame.pack(fill=tk.BOTH, expand=True)
+            # Container for all content
+            self.dynamic_frame = tk.Frame(self.main_frame, bg=self.colors['bg'])
+            self.dynamic_frame.pack(fill=tk.BOTH, expand=True)
 
-        self.analysis_frame = tk.Frame(self.dynamic_frame, bg=self.colors['bg'])
-        self.setup_analysis_module(self.analysis_frame)
-        self.analysis_frame.pack(fill=tk.BOTH, expand=True)
+            # Build integration and analysis sections inline
+            self.integration_frame = tk.Frame(self.dynamic_frame, bg=self.colors['bg'])
+            self.setup_integration_module(self.integration_frame)
+            self.integration_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Progress bar section
-        prog_cont = tk.Frame(main_frame, bg=self.colors['bg'])
-        prog_cont.pack(fill=tk.X, pady=(15, 15))
+            self.analysis_frame = tk.Frame(self.dynamic_frame, bg=self.colors['bg'])
+            self.setup_analysis_module(self.analysis_frame)
+            self.analysis_frame.pack(fill=tk.BOTH, expand=True)
 
-        prog_inner = tk.Frame(prog_cont, bg=self.colors['bg'])
-        prog_inner.pack(expand=True)
+            # Progress bar section
+            prog_cont = tk.Frame(self.main_frame, bg=self.colors['bg'])
+            prog_cont.pack(fill=tk.X, pady=(15, 15))
 
-        self.progress = CuteSheepProgressBar(prog_inner, width=780, height=80)
-        self.progress.pack()
+            prog_inner = tk.Frame(prog_cont, bg=self.colors['bg'])
+            prog_inner.pack(expand=True)
 
-        # Log area
-        log_card = self.create_card_frame(main_frame)
-        log_card.pack(fill=tk.BOTH, expand=True)
+            self.progress = CuteSheepProgressBar(prog_inner, width=780, height=80)
+            self.progress.pack()
 
-        log_content = tk.Frame(log_card, bg=self.colors['card_bg'], padx=20, pady=12)
-        log_content.pack(fill=tk.BOTH, expand=True)
+            # Log area
+            log_card = self.create_card_frame(self.main_frame)
+            log_card.pack(fill=tk.BOTH, expand=True)
 
-        log_header = tk.Frame(log_content, bg=self.colors['card_bg'])
-        log_header.pack(anchor=tk.W, pady=(0, 8))
+            log_content = tk.Frame(log_card, bg=self.colors['card_bg'], padx=20, pady=12)
+            log_content.pack(fill=tk.BOTH, expand=True)
 
-        tk.Label(log_header, text="🐰", bg=self.colors['card_bg'],
-                font=('Segoe UI Emoji', 14)).pack(side=tk.LEFT, padx=(0, 6))
+            log_header = tk.Frame(log_content, bg=self.colors['card_bg'])
+            log_header.pack(anchor=tk.W, pady=(0, 8))
 
-        tk.Label(log_header, text="Process Log",
-                bg=self.colors['card_bg'], fg=self.colors['primary'],
-                font=('Arial', 11, 'bold')).pack(side=tk.LEFT)
+            tk.Label(log_header, text="🐰", bg=self.colors['card_bg'],
+                    font=('Segoe UI Emoji', 14)).pack(side=tk.LEFT, padx=(0, 6))
 
-        self.log_text = scrolledtext.ScrolledText(log_content, height=10, wrap=tk.WORD,
-                                                  font=('Arial', 10),
-                                                  bg='#FAFAFA', fg='#B794F6',
-                                                  relief='flat', borderwidth=0, padx=10, pady=10)
-        self.log_text.pack(fill=tk.BOTH, expand=True)
+            tk.Label(log_header, text="Process Log",
+                    bg=self.colors['card_bg'], fg=self.colors['primary'],
+                    font=('Arial', 11, 'bold')).pack(side=tk.LEFT)
+
+            self.log_text = scrolledtext.ScrolledText(log_content, height=10, wrap=tk.WORD,
+                                                      font=('Arial', 10),
+                                                      bg='#FAFAFA', fg='#B794F6',
+                                                      relief='flat', borderwidth=0, padx=10, pady=10)
+            self.log_text.pack(fill=tk.BOTH, expand=True)
 
         # Show the assembled UI in one step to minimize visible layout changes
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
         self.root.update_idletasks()
 
     def create_file_picker_with_spinbox_btn(self, parent, label_text, var, filetypes, pattern=False):

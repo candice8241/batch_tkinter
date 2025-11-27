@@ -134,9 +134,9 @@ class XRDProcessingGUI(GUIBase):
         self.single_tab.set_active(tab_name == "single")
         self.radial_tab.set_active(tab_name == "radial")
 
-        # Clear existing content
+        # Hide existing content without destroying widgets to keep tabs instant
         for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
+            widget.pack_forget()
 
         # Load appropriate module
         if tab_name == "powder":
