@@ -446,21 +446,36 @@ class AzimuthalIntegrationModule(GUIBase):
             pass
 
     def setup_ui(self):
-        """Setup UI with error handling"""
-        # Temporarily stop widget updates to prevent flickering
+        """Setup UI with error handling and optimized loading"""
+        # Clear existing widgets
         try:
             for widget in self.parent.winfo_children():
                 widget.destroy()
         except:
             pass
 
-        self._create_reference_section()
-        self._create_separated_settings_sections()
-        self._create_output_options_section()
-        self._create_progress_section()
-        self._create_log_section()
+        # Create a temporary container to build all UI off-screen
+        temp_container = tk.Frame(self.parent, bg=self.colors['bg'])
 
-        # Update UI after all widgets are created
+        # Build all UI components in the temporary container first
+        # This prevents the flickering during initial load
+        old_parent = self.parent
+        self.parent = temp_container
+
+        try:
+            self._create_reference_section()
+            self._create_separated_settings_sections()
+            self._create_output_options_section()
+            self._create_progress_section()
+            self._create_log_section()
+        finally:
+            # Restore original parent
+            self.parent = old_parent
+
+        # Now pack the fully-built container at once - smooth display
+        temp_container.pack(fill=tk.BOTH, expand=True)
+
+        # Single update after everything is ready
         try:
             self.parent.update_idletasks()
         except:
@@ -1362,19 +1377,39 @@ class AzimuthalIntegrationModule(GUIBase):
         self.log_text.pack(fill=tk.BOTH, expand=True)
 
     def update_mode(self):
+        """Update mode with smooth transition - no flicker"""
         # Remove all existing traces before updating UI
         self._remove_all_traces()
 
+        # Create new content in a hidden frame first
+        temp_frame = tk.Frame(self.dynamic_frame, bg=self.colors['card_bg'])
+
+        # Build the new UI off-screen
+        old_dynamic = self.dynamic_frame
+        self.dynamic_frame = temp_frame
+
         try:
+            if self.mode.get() == 'single':
+                self._setup_single_sector_ui()
+            else:
+                self._setup_multiple_sectors_ui()
+        finally:
+            # Restore the reference
+            self.dynamic_frame = old_dynamic
+
+        # Now do the switch atomically
+        try:
+            # Remove old widgets
             for widget in self.dynamic_frame.winfo_children():
                 widget.destroy()
+
+            # Pack new content
+            temp_frame.pack(in_=self.dynamic_frame, fill=tk.BOTH, expand=True)
+
+            # Force immediate update to prevent flicker
+            self.dynamic_frame.update_idletasks()
         except:
             pass
-
-        if self.mode.get() == 'single':
-            self._setup_single_sector_ui()
-        else:
-            self._setup_multiple_sectors_ui()
 
     def _setup_single_sector_ui(self):
         """Single sector with bin mode option"""
@@ -1396,18 +1431,16 @@ class AzimuthalIntegrationModule(GUIBase):
         self._update_bin_mode_ui()
 
     def _update_bin_mode_ui(self):
-        """Update UI based on bin mode selection"""
+        """Update UI based on bin mode selection - smooth transition"""
         # Remove traces before rebuilding UI
         self._remove_all_traces()
 
-        try:
-            for widget in self.bin_mode_frame.winfo_children():
-                widget.destroy()
-        except:
-            pass
+        # Create new content in a hidden frame first
+        temp_frame = tk.Frame(self.bin_mode_frame, bg=self.colors['card_bg'])
 
-        # Process pending events to prevent flicker
-        self.bin_mode_frame.update_idletasks()
+        # Build the new UI off-screen
+        old_bin_frame = self.bin_mode_frame
+        self.bin_mode_frame = temp_frame
 
         if self.bin_mode.get():
             # BIN MODE UI
@@ -1509,6 +1542,22 @@ class AzimuthalIntegrationModule(GUIBase):
             tk.Entry(label_cont, textvariable=self.sector_label,
                     font=('Arial', 9), width=15).pack(anchor=tk.W)
 
+        # Now restore and do the atomic switch
+        self.bin_mode_frame = old_bin_frame
+
+        try:
+            # Remove old widgets
+            for widget in self.bin_mode_frame.winfo_children():
+                widget.destroy()
+
+            # Pack new content
+            temp_frame.pack(in_=self.bin_mode_frame, fill=tk.BOTH, expand=True)
+
+            # Force immediate update to prevent flicker
+            self.bin_mode_frame.update_idletasks()
+        except:
+            pass
+
     def _setup_multiple_sectors_ui(self):
         """Multiple sectors - Custom sectors only"""
         main_container = tk.Frame(self.dynamic_frame, bg=self.colors['card_bg'])
@@ -1518,20 +1567,40 @@ class AzimuthalIntegrationModule(GUIBase):
         self._setup_custom_sectors_mode_direct(main_container)
 
     def update_multiple_submode(self):
+        """Update multiple submode with smooth transition"""
         # Remove all existing traces before updating UI
         self._remove_all_traces()
 
+        # Create new content in a hidden frame first
+        temp_frame = tk.Frame(self.submode_frame, bg=self.colors['card_bg'])
+
+        # Build the new UI off-screen
+        old_submode = self.submode_frame
+        self.submode_frame = temp_frame
+
         try:
+            if self.multiple_mode.get() == 'preset':
+                self._setup_preset_mode()
+            else:
+                self._setup_custom_sectors_mode()
+        finally:
+            # Restore the reference
+            self.submode_frame = old_submode
+
+        # Now do the switch atomically
+        try:
+            # Remove old widgets
             for widget in self.submode_frame.winfo_children():
                 widget.destroy()
             self.sector_row_widgets = []
+
+            # Pack new content
+            temp_frame.pack(in_=self.submode_frame, fill=tk.BOTH, expand=True)
+
+            # Force immediate update to prevent flicker
+            self.submode_frame.update_idletasks()
         except:
             pass
-
-        if self.multiple_mode.get() == 'preset':
-            self._setup_preset_mode()
-        else:
-            self._setup_custom_sectors_mode()
 
     def _setup_preset_mode(self):
         """Preset mode"""
@@ -1612,36 +1681,37 @@ class AzimuthalIntegrationModule(GUIBase):
             self._create_sector_row(idx)
 
     def _update_custom_sectors_display(self):
-        """Update instruction text and recreate sector rows when bin mode changes"""
-        # Recreate sector rows with visual masking
+        """Update instruction text and recreate sector rows - smooth transition"""
         if hasattr(self, 'sectors_container'):
             try:
-                # 🌸 Create temporary overlay to hide flickering
-                overlay = tk.Frame(self.sectors_container, 
-                                 bg=self.colors['card_bg'],
-                                 width=self.sectors_container.winfo_width(),
-                                 height=self.sectors_container.winfo_height())
-                overlay.place(x=0, y=0, relwidth=1, relheight=1)
-                overlay.lift()
-                
-                # Update UI synchronously
-                self.sectors_container.update_idletasks()
-                
-                # Destroy all old widgets
-                for widget in self.sector_row_widgets:
-                    widget.destroy()
+                # Create a temporary container to build rows off-screen
+                temp_container = tk.Frame(self.sectors_container, bg=self.colors['card_bg'])
+
+                # Temporarily redirect sectors_container to build in temp
+                old_container = self.sectors_container
+                self.sectors_container = temp_container
+                old_widgets = self.sector_row_widgets
                 self.sector_row_widgets = []
-                
-                # Recreate all rows
-                for idx in range(len(self.custom_sectors)):
-                    self._create_sector_row(idx)
-                
-                # Force complete redraw
+
+                try:
+                    # Build all rows in the temporary container
+                    for idx in range(len(self.custom_sectors)):
+                        self._create_sector_row(idx)
+                finally:
+                    # Restore original container
+                    self.sectors_container = old_container
+
+                # Now do atomic swap
+                # Destroy old widgets
+                for widget in old_widgets:
+                    widget.destroy()
+
+                # Pack the new container
+                temp_container.pack(in_=self.sectors_container, fill=tk.BOTH, expand=True)
+
+                # Single update after everything is ready
                 self.sectors_container.update_idletasks()
-                
-                # 🌸 Remove overlay after a tiny delay
-                self.root.after(50, overlay.destroy)
-                
+
             except Exception as e:
                 print(f"Error updating custom sectors display: {e}")
 
@@ -1750,13 +1820,12 @@ class AzimuthalIntegrationModule(GUIBase):
             self.log(f"Error adding sector: {e}")
 
     def _delete_sector(self, index):
-        """Delete a sector"""
+        """Delete a sector - optimized to reduce flicker"""
         if len(self.custom_sectors) <= 1:
             messagebox.showwarning("Warning", "At least one sector must be defined!")
             return
 
         try:
-            self.sectors_container.update_idletasks()
             del self.custom_sectors[index]
 
             if index < len(self.sector_row_widgets):
@@ -1764,8 +1833,10 @@ class AzimuthalIntegrationModule(GUIBase):
                 row_widget.pack_forget()
                 del self.sector_row_widgets[index]
                 self._renumber_sectors()
-                self.sectors_container.update_idletasks()
                 row_widget.destroy()
+
+            # Single update at the end
+            self.sectors_container.update_idletasks()
 
         except Exception as e:
             self.log(f"Error deleting sector: {e}")
