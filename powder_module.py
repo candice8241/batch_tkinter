@@ -436,6 +436,90 @@ class PowderXRDModule(GUIBase):
         main_frame.pack(fill=tk.BOTH, expand=True)
         self.root.update_idletasks()
 
+        # Prebuild heavy secondary windows so their first open is immediate
+        self.prebuild_interactive_windows()
+
+    def prebuild_interactive_windows(self):
+        """Create interactive fitting and EoS windows ahead of user requests."""
+        self._build_interactive_fitting_window()
+        self._build_interactive_eos_window()
+
+    def _build_interactive_fitting_window(self):
+        """Instantiate the interactive fitting UI in a hidden window for reuse."""
+        if self.interactive_fitting_window is not None and self.interactive_fitting_window.winfo_exists():
+            return self.interactive_fitting_window
+
+        window = tk.Toplevel(self.root)
+        window.withdraw()
+        window.title("Interactive Peak Fitting - Enhanced")
+
+        window_width = 1400
+        window_height = 850
+        screen_width = window.winfo_screenwidth()
+        screen_height = window.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+        icon_paths = [
+            "xrd_sheep_icon.ico",
+            "xrd_peak_fitting_icon.ico",
+            os.path.join(os.path.dirname(__file__), "icon.ico"),
+            r"D:\\HEPS\\ID31\\dioptas_data\\github_felicity\\batch\\HP_full_package\\ChatGPT Image.ico"
+        ]
+
+        for icon_path in icon_paths:
+            if os.path.exists(icon_path):
+                try:
+                    window.iconbitmap(icon_path)
+                    break
+                except Exception:
+                    pass
+
+        PeakFittingGUI(window)
+
+        def on_closing():
+            window.withdraw()
+            self.log("📊 Interactive fitting window hidden")
+
+        window.protocol("WM_DELETE_WINDOW", on_closing)
+        window.update_idletasks()
+
+        self.interactive_fitting_window = window
+        return window
+
+    def _build_interactive_eos_window(self):
+        """Instantiate the interactive EoS UI in a hidden window for reuse."""
+        if self.interactive_eos_window is not None and self.interactive_eos_window.winfo_exists():
+            return self.interactive_eos_window
+
+        window = tk.Toplevel(self.root)
+        window.withdraw()
+        window.title("Interactive EoS GUI")
+
+        window_width = 1480
+        window_height = 900
+        screen_width = window.winfo_screenwidth()
+        screen_height = window.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+        InteractiveEoSGUI(window)
+
+        def on_close():
+            try:
+                window.withdraw()
+                self.log("🌌 Interactive EoS GUI hidden")
+            finally:
+                self.interactive_eos_window = window
+
+        window.protocol("WM_DELETE_WINDOW", on_close)
+        window.update_idletasks()
+
+        self.interactive_eos_window = window
+        return window
+
     def create_file_picker_with_spinbox_btn(self, parent, label_text, var, filetypes, pattern=False):
         """Create file picker with spinbox-style button"""
         container = tk.Frame(parent, bg=self.colors['card_bg'])
@@ -886,89 +970,29 @@ class PowderXRDModule(GUIBase):
 
     def open_interactive_fitting(self):
         """Open the interactive peak fitting GUI in a new window"""
-        if self.interactive_fitting_window is not None:
-            try:
-                if self.interactive_fitting_window.winfo_exists():
-                    self.interactive_fitting_window.lift()
-                    self.interactive_fitting_window.focus_force()
-                    self.log("📊 Interactive fitting window brought to front")
-                    return
-            except:
-                pass
+        window = self._build_interactive_fitting_window()
 
-        self.interactive_fitting_window = tk.Toplevel(self.root)
-        self.interactive_fitting_window.title("Interactive Peak Fitting - Enhanced")
-
-        window_width = 1400
-        window_height = 850
-        screen_width = self.interactive_fitting_window.winfo_screenwidth()
-        screen_height = self.interactive_fitting_window.winfo_screenheight()
-        x = (screen_width - window_width) // 2
-        y = (screen_height - window_height) // 2
-        self.interactive_fitting_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
-        # Set icon using the same logic as half_auto_fitting
-        icon_paths = [
-            "xrd_sheep_icon.ico",
-            "xrd_peak_fitting_icon.ico",
-            os.path.join(os.path.dirname(__file__), "icon.ico"),
-            r"D:\HEPS\ID31\dioptas_data\github_felicity\batch\HP_full_package\ChatGPT Image.ico"
-        ]
-
-        for icon_path in icon_paths:
-            if os.path.exists(icon_path):
-                try:
-                    self.interactive_fitting_window.iconbitmap(icon_path)
-                    break
-                except:
-                    pass
-
-        fitting_app = PeakFittingGUI(self.interactive_fitting_window)
+        try:
+            window.deiconify()
+            window.lift()
+            window.focus_force()
+        except Exception:
+            pass
 
         self.log("✨ Interactive peak fitting GUI opened in new window")
 
-        def on_closing():
-            self.interactive_fitting_window.destroy()
-            self.interactive_fitting_window = None
-            self.log("📊 Interactive fitting window closed")
-
-        self.interactive_fitting_window.protocol("WM_DELETE_WINDOW", on_closing)
-
     def open_interactive_eos_gui(self):
         """Open the interactive EoS GUI in a separate window"""
-        if self.interactive_eos_window is not None:
-            try:
-                if self.interactive_eos_window.winfo_exists():
-                    self.interactive_eos_window.lift()
-                    self.interactive_eos_window.focus_force()
-                    self.log("🌌 Interactive EoS GUI brought to front")
-                    return
-            except Exception:
-                pass
+        window = self._build_interactive_eos_window()
 
-        self.interactive_eos_window = tk.Toplevel(self.root)
-        self.interactive_eos_window.title("Interactive EoS GUI")
+        try:
+            window.deiconify()
+            window.lift()
+            window.focus_force()
+        except Exception:
+            pass
 
-        # Center window on screen
-        window_width = 1480
-        window_height = 900
-        screen_width = self.interactive_eos_window.winfo_screenwidth()
-        screen_height = self.interactive_eos_window.winfo_screenheight()
-        x = (screen_width - window_width) // 2
-        y = (screen_height - window_height) // 2
-        self.interactive_eos_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
-        # Initialize the interactive EoS GUI within the Toplevel
-        InteractiveEoSGUI(self.interactive_eos_window)
-
-        def on_close():
-            try:
-                self.interactive_eos_window.destroy()
-            finally:
-                self.interactive_eos_window = None
-                self.log("🌌 Interactive EoS GUI closed")
-
-        self.interactive_eos_window.protocol("WM_DELETE_WINDOW", on_close)
+        self.log("✨ Interactive EoS GUI opened in new window")
 
     def setup_analysis_module(self, parent_frame):
         """Analysis section currently hosts no additional controls."""

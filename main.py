@@ -155,6 +155,7 @@ class XRDProcessingGUI(GUIBase):
         if self.powder_module is None:
             self.powder_module = PowderXRDModule(powder_frame, self.root)
             self.powder_module.setup_ui()
+            self.powder_module.prebuild_interactive_windows()
 
         radial_frame = self._ensure_frame("radial")
         if self.radial_module is None:
