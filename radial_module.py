@@ -1381,10 +1381,12 @@ class AzimuthalIntegrationModule(GUIBase):
         # Remove all existing traces before updating UI
         self._remove_all_traces()
 
-        # Create new content in a hidden frame first
-        temp_frame = tk.Frame(self.dynamic_frame, bg=self.colors['card_bg'])
+        # Create new content in a temporary parent (not child of dynamic_frame)
+        temp_parent = tk.Frame(self.parent, bg=self.colors['card_bg'])
+        temp_frame = tk.Frame(temp_parent, bg=self.colors['card_bg'])
+        temp_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Build the new UI off-screen
+        # Build the new UI in temp_frame
         old_dynamic = self.dynamic_frame
         self.dynamic_frame = temp_frame
 
@@ -1403,8 +1405,12 @@ class AzimuthalIntegrationModule(GUIBase):
             for widget in self.dynamic_frame.winfo_children():
                 widget.destroy()
 
-            # Pack new content
+            # Reparent temp_frame to dynamic_frame
+            temp_frame.pack_forget()
             temp_frame.pack(in_=self.dynamic_frame, fill=tk.BOTH, expand=True)
+
+            # Clean up temporary parent
+            temp_parent.destroy()
 
             # Force immediate update to prevent flicker
             self.dynamic_frame.update_idletasks()
@@ -1435,10 +1441,12 @@ class AzimuthalIntegrationModule(GUIBase):
         # Remove traces before rebuilding UI
         self._remove_all_traces()
 
-        # Create new content in a hidden frame first
-        temp_frame = tk.Frame(self.bin_mode_frame, bg=self.colors['card_bg'])
+        # Create new content in a temporary parent (not child of bin_mode_frame)
+        temp_parent = tk.Frame(self.parent, bg=self.colors['card_bg'])
+        temp_frame = tk.Frame(temp_parent, bg=self.colors['card_bg'])
+        temp_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Build the new UI off-screen
+        # Build the new UI in temp_frame
         old_bin_frame = self.bin_mode_frame
         self.bin_mode_frame = temp_frame
 
@@ -1550,8 +1558,12 @@ class AzimuthalIntegrationModule(GUIBase):
             for widget in self.bin_mode_frame.winfo_children():
                 widget.destroy()
 
-            # Pack new content
+            # Reparent temp_frame to bin_mode_frame
+            temp_frame.pack_forget()
             temp_frame.pack(in_=self.bin_mode_frame, fill=tk.BOTH, expand=True)
+
+            # Clean up temporary parent
+            temp_parent.destroy()
 
             # Force immediate update to prevent flicker
             self.bin_mode_frame.update_idletasks()
@@ -1571,10 +1583,12 @@ class AzimuthalIntegrationModule(GUIBase):
         # Remove all existing traces before updating UI
         self._remove_all_traces()
 
-        # Create new content in a hidden frame first
-        temp_frame = tk.Frame(self.submode_frame, bg=self.colors['card_bg'])
+        # Create new content in a temporary parent (not child of submode_frame)
+        temp_parent = tk.Frame(self.parent, bg=self.colors['card_bg'])
+        temp_frame = tk.Frame(temp_parent, bg=self.colors['card_bg'])
+        temp_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Build the new UI off-screen
+        # Build the new UI in temp_frame
         old_submode = self.submode_frame
         self.submode_frame = temp_frame
 
@@ -1594,8 +1608,12 @@ class AzimuthalIntegrationModule(GUIBase):
                 widget.destroy()
             self.sector_row_widgets = []
 
-            # Pack new content
+            # Reparent temp_frame to submode_frame
+            temp_frame.pack_forget()
             temp_frame.pack(in_=self.submode_frame, fill=tk.BOTH, expand=True)
+
+            # Clean up temporary parent
+            temp_parent.destroy()
 
             # Force immediate update to prevent flicker
             self.submode_frame.update_idletasks()
@@ -1684,8 +1702,10 @@ class AzimuthalIntegrationModule(GUIBase):
         """Update instruction text and recreate sector rows - smooth transition"""
         if hasattr(self, 'sectors_container'):
             try:
-                # Create a temporary container to build rows off-screen
-                temp_container = tk.Frame(self.sectors_container, bg=self.colors['card_bg'])
+                # Create a temporary parent (not child of sectors_container)
+                temp_parent = tk.Frame(self.parent, bg=self.colors['card_bg'])
+                temp_container = tk.Frame(temp_parent, bg=self.colors['card_bg'])
+                temp_container.pack(fill=tk.BOTH, expand=True)
 
                 # Temporarily redirect sectors_container to build in temp
                 old_container = self.sectors_container
@@ -1706,8 +1726,12 @@ class AzimuthalIntegrationModule(GUIBase):
                 for widget in old_widgets:
                     widget.destroy()
 
-                # Pack the new container
+                # Reparent temp_container to sectors_container
+                temp_container.pack_forget()
                 temp_container.pack(in_=self.sectors_container, fill=tk.BOTH, expand=True)
+
+                # Clean up temporary parent
+                temp_parent.destroy()
 
                 # Single update after everything is ready
                 self.sectors_container.update_idletasks()
