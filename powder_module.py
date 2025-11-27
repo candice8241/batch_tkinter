@@ -904,6 +904,7 @@ class PowderXRDModule(GUIBase):
                 pass
 
         self.interactive_fitting_window = tk.Toplevel(self.root)
+        self.interactive_fitting_window.withdraw()  # Build off-screen to avoid flicker
         self.interactive_fitting_window.title("Interactive Peak Fitting - Enhanced")
 
         window_width = 1400
@@ -932,6 +933,12 @@ class PowderXRDModule(GUIBase):
 
         fitting_app = PeakFittingGUI(self.interactive_fitting_window)
 
+        # Reveal only after UI is ready for a smoother first paint
+        self.interactive_fitting_window.update_idletasks()
+        self.interactive_fitting_window.deiconify()
+        self.interactive_fitting_window.lift()
+        self.interactive_fitting_window.focus_force()
+
         self.log("✨ Interactive peak fitting GUI opened in new window")
 
         def on_closing():
@@ -954,6 +961,7 @@ class PowderXRDModule(GUIBase):
                 pass
 
         self.interactive_eos_window = tk.Toplevel(self.root)
+        self.interactive_eos_window.withdraw()  # Prepare off-screen to prevent initial flash
         self.interactive_eos_window.title("Interactive EoS GUI")
 
         # Center window on screen
@@ -967,6 +975,12 @@ class PowderXRDModule(GUIBase):
 
         # Initialize the interactive EoS GUI within the Toplevel
         InteractiveEoSGUI(self.interactive_eos_window)
+
+        # Reveal only after UI is ready to keep opening smooth
+        self.interactive_eos_window.update_idletasks()
+        self.interactive_eos_window.deiconify()
+        self.interactive_eos_window.lift()
+        self.interactive_eos_window.focus_force()
 
         def on_close():
             try:
