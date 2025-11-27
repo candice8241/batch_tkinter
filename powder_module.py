@@ -386,6 +386,19 @@ class PowderXRDModule(GUIBase):
 
     def setup_ui(self):
         """Setup the complete powder XRD UI"""
+        # Show a lightweight placeholder so the UI doesn't visibly assemble piece by piece
+        loading_cover = tk.Frame(self.parent, bg=self.colors['bg'])
+        loading_cover.pack(fill=tk.BOTH, expand=True)
+        tk.Label(
+            loading_cover,
+            text="Loading Powder XRD workspace…",
+            bg=self.colors['bg'],
+            fg=self.colors['text_dark'],
+            font=('Arial', 10, 'italic')
+        ).pack(expand=True, pady=20)
+        self.root.update_idletasks()
+
+        # Build the real UI off-screen, then swap it in for a smooth appearance
         main_frame = tk.Frame(self.parent, bg=self.colors['bg'])
         # Container for all content
         self.dynamic_frame = tk.Frame(main_frame, bg=self.colors['bg'])
@@ -433,6 +446,8 @@ class PowderXRDModule(GUIBase):
                                                   relief='flat', borderwidth=0, padx=10, pady=10)
         self.log_text.pack(fill=tk.BOTH, expand=True)
 
+        # Swap the finished UI into view in one step
+        loading_cover.destroy()
         main_frame.pack(fill=tk.BOTH, expand=True)
         self.root.update_idletasks()
 
