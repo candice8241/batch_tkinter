@@ -896,11 +896,12 @@ class PowderXRDModule(GUIBase):
         if self.interactive_fitting_window is not None:
             try:
                 if self.interactive_fitting_window.winfo_exists():
+                    self.interactive_fitting_window.deiconify()
                     self.interactive_fitting_window.lift()
                     self.interactive_fitting_window.focus_force()
                     self.log("📊 Interactive fitting window brought to front")
                     return
-            except:
+            except Exception:
                 pass
 
         self.interactive_fitting_window = tk.Toplevel(self.root)
@@ -931,7 +932,7 @@ class PowderXRDModule(GUIBase):
                 except:
                     pass
 
-        fitting_app = PeakFittingGUI(self.interactive_fitting_window)
+        PeakFittingGUI(self.interactive_fitting_window)
 
         # Reveal only after UI is ready for a smoother first paint
         self.interactive_fitting_window.update_idletasks()
@@ -944,18 +945,12 @@ class PowderXRDModule(GUIBase):
         def on_closing():
             try:
                 self.interactive_fitting_window.withdraw()
+                self.interactive_fitting_window.update_idletasks()
             except Exception:
                 pass
 
-            def _finalize_close():
-                try:
-                    self.interactive_fitting_window.destroy()
-                finally:
-                    self.interactive_fitting_window = None
-                    self.log("📊 Interactive fitting window closed")
-
-            # Run destroy after idle to avoid taskbar flash when closing
-            self.interactive_fitting_window.after_idle(_finalize_close)
+            # Keep the window around for instant reopen without taskbar flashes
+            self.log("📊 Interactive fitting window hidden")
 
         self.interactive_fitting_window.protocol("WM_DELETE_WINDOW", on_closing)
 
@@ -964,6 +959,7 @@ class PowderXRDModule(GUIBase):
         if self.interactive_eos_window is not None:
             try:
                 if self.interactive_eos_window.winfo_exists():
+                    self.interactive_eos_window.deiconify()
                     self.interactive_eos_window.lift()
                     self.interactive_eos_window.focus_force()
                     self.log("🌌 Interactive EoS GUI brought to front")
@@ -996,18 +992,12 @@ class PowderXRDModule(GUIBase):
         def on_close():
             try:
                 self.interactive_eos_window.withdraw()
+                self.interactive_eos_window.update_idletasks()
             except Exception:
                 pass
 
-            def _finalize_close():
-                try:
-                    self.interactive_eos_window.destroy()
-                finally:
-                    self.interactive_eos_window = None
-                    self.log("🌌 Interactive EoS GUI closed")
-
-            # Delay destroy to prevent taskbar flashing when releasing focus
-            self.interactive_eos_window.after_idle(_finalize_close)
+            # Keep for instant reuse without re-creating taskbar entries
+            self.log("🌌 Interactive EoS GUI hidden")
 
         self.interactive_eos_window.protocol("WM_DELETE_WINDOW", on_close)
 
