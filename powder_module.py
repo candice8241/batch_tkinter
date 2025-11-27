@@ -893,12 +893,22 @@ class PowderXRDModule(GUIBase):
 
     def open_interactive_fitting(self):
         """Open the interactive peak fitting GUI in a new window"""
+        def _show_window(window: tk.Toplevel):
+            """Smoothly reveal a reused tool window without taskbar flicker."""
+            try:
+                window.attributes("-alpha", 0.0)
+                window.deiconify()
+                window.update_idletasks()
+                window.after(10, lambda: window.attributes("-alpha", 1.0))
+                window.lift()
+                window.focus_force()
+            except Exception:
+                pass
+
         if self.interactive_fitting_window is not None:
             try:
                 if self.interactive_fitting_window.winfo_exists():
-                    self.interactive_fitting_window.deiconify()
-                    self.interactive_fitting_window.lift()
-                    self.interactive_fitting_window.focus_force()
+                    _show_window(self.interactive_fitting_window)
                     self.log("📊 Interactive fitting window brought to front")
                     return
             except Exception:
@@ -906,6 +916,11 @@ class PowderXRDModule(GUIBase):
 
         self.interactive_fitting_window = tk.Toplevel(self.root)
         self.interactive_fitting_window.withdraw()  # Build off-screen to avoid flicker
+        try:
+            self.interactive_fitting_window.transient(self.root)
+            self.interactive_fitting_window.attributes("-toolwindow", True)
+        except Exception:
+            pass
         self.interactive_fitting_window.title("Interactive Peak Fitting - Enhanced")
 
         window_width = 1400
@@ -934,16 +949,13 @@ class PowderXRDModule(GUIBase):
 
         PeakFittingGUI(self.interactive_fitting_window)
 
-        # Reveal only after UI is ready for a smoother first paint
-        self.interactive_fitting_window.update_idletasks()
-        self.interactive_fitting_window.deiconify()
-        self.interactive_fitting_window.lift()
-        self.interactive_fitting_window.focus_force()
+        _show_window(self.interactive_fitting_window)
 
         self.log("✨ Interactive peak fitting GUI opened in new window")
 
         def on_closing():
             try:
+                self.interactive_fitting_window.attributes("-alpha", 0.0)
                 self.interactive_fitting_window.withdraw()
                 self.interactive_fitting_window.update_idletasks()
             except Exception:
@@ -956,12 +968,22 @@ class PowderXRDModule(GUIBase):
 
     def open_interactive_eos_gui(self):
         """Open the interactive EoS GUI in a separate window"""
+        def _show_window(window: tk.Toplevel):
+            """Reveal a reused EoS window smoothly without taskbar flashes."""
+            try:
+                window.attributes("-alpha", 0.0)
+                window.deiconify()
+                window.update_idletasks()
+                window.after(10, lambda: window.attributes("-alpha", 1.0))
+                window.lift()
+                window.focus_force()
+            except Exception:
+                pass
+
         if self.interactive_eos_window is not None:
             try:
                 if self.interactive_eos_window.winfo_exists():
-                    self.interactive_eos_window.deiconify()
-                    self.interactive_eos_window.lift()
-                    self.interactive_eos_window.focus_force()
+                    _show_window(self.interactive_eos_window)
                     self.log("🌌 Interactive EoS GUI brought to front")
                     return
             except Exception:
@@ -969,6 +991,11 @@ class PowderXRDModule(GUIBase):
 
         self.interactive_eos_window = tk.Toplevel(self.root)
         self.interactive_eos_window.withdraw()  # Prepare off-screen to prevent initial flash
+        try:
+            self.interactive_eos_window.transient(self.root)
+            self.interactive_eos_window.attributes("-toolwindow", True)
+        except Exception:
+            pass
         self.interactive_eos_window.title("Interactive EoS GUI")
 
         # Center window on screen
@@ -983,14 +1010,11 @@ class PowderXRDModule(GUIBase):
         # Initialize the interactive EoS GUI within the Toplevel
         InteractiveEoSGUI(self.interactive_eos_window)
 
-        # Reveal only after UI is ready to keep opening smooth
-        self.interactive_eos_window.update_idletasks()
-        self.interactive_eos_window.deiconify()
-        self.interactive_eos_window.lift()
-        self.interactive_eos_window.focus_force()
+        _show_window(self.interactive_eos_window)
 
         def on_close():
             try:
+                self.interactive_eos_window.attributes("-alpha", 0.0)
                 self.interactive_eos_window.withdraw()
                 self.interactive_eos_window.update_idletasks()
             except Exception:
