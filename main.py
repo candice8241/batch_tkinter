@@ -29,6 +29,9 @@ class XRDProcessingGUI(GUIBase):
         """
         super().__init__()
         self.root = root
+        # Hide the window while heavy UI construction occurs to avoid visible flashes
+        # when the app first appears.
+        self.root.withdraw()
         self.root.title("XRD Data Post-Processing")
         self.root.geometry("1100x950")
         self.root.resizable(True, True)
@@ -134,6 +137,10 @@ class XRDProcessingGUI(GUIBase):
 
         # Show powder tab by default
         self.switch_tab("powder")
+
+        # Reveal the fully built UI at once to prevent seeing intermediate states
+        self.root.update_idletasks()
+        self.root.deiconify()
 
     def _ensure_frame(self, name):
         if self.module_frames[name] is None:
