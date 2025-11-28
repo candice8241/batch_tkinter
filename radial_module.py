@@ -1603,18 +1603,21 @@ class AzimuthalIntegrationModule(GUIBase):
         self.sectors_container.pack_propagate(False)
 
         # Buttons for add/clear sectors
-        btn_frame = tk.Frame(self.custom_center_all, bg=self.colors['card_bg'])
+        btn_frame = tk.Frame(self.custom_center_all, bg=self.colors['card_bg'], width=620)
         btn_frame.pack(anchor='center', pady=(10, 0))
+        btn_frame.pack_propagate(False)
+        btn_frame.grid_columnconfigure(0, weight=1)
+        btn_frame.grid_columnconfigure(3, weight=1)
 
         tk.Button(btn_frame, text="🐾 Add Sector", command=self._add_sector,
                  bg='#D8A7D8', fg='white',
                  font=('Arial', 8, 'bold'), relief='flat',
-                 padx=5, pady=5, cursor='hand2').pack(side=tk.LEFT, padx=10)
+                 padx=12, pady=6, cursor='hand2', width=12).grid(row=0, column=1, padx=10)
 
         tk.Button(btn_frame, text="🍉 Clear All", command=self._clear_all_sectors,
                  bg='#FF9FB5', fg='white',
                  font=('Arial', 8, 'bold'), relief='flat',
-                 padx=5, pady=5, cursor='hand2').pack(side=tk.LEFT, padx=10)
+                 padx=12, pady=6, cursor='hand2', width=12).grid(row=0, column=2, padx=10)
 
         for idx in range(len(self.custom_sectors)):
             self._create_sector_row(idx)
