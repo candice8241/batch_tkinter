@@ -1158,7 +1158,7 @@ class PeakFittingGUI:
             title="Select XRD Data File",
             filetypes=[("XY files", "*.xy"), ("DAT files", "*.dat"),
                        ("Text files", "*.txt"), ("All files", "*.*")],
-            parent=self.root
+            parent=self.master
         )
 
         if not filepath:
@@ -2062,7 +2062,7 @@ class PeakFittingGUI:
             messagebox.showwarning("No Results", "Please fit peaks before saving!")
             return
 
-        save_dir = filedialog.askdirectory(title="Select Save Directory", parent=self.root)
+        save_dir = filedialog.askdirectory(title="Select Save Directory", parent=self.master)
         if not save_dir:
             return
 
