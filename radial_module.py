@@ -1587,25 +1587,25 @@ class AzimuthalIntegrationModule(GUIBase):
         # Sectors container
         self.sectors_outer_frame = tk.Frame(content_column,
                                             bg=self.colors['card_bg'],
-                                            height=200,
+                                            height=150,
                                             width=620)
-        self.sectors_outer_frame.pack(pady=(0, 15), anchor='center')
+        self.sectors_outer_frame.pack(pady=(0, 10), anchor='center')
         self.sectors_outer_frame.pack_propagate(False)
 
         self.sectors_spacer = tk.Frame(self.sectors_outer_frame, bg=self.colors['card_bg'],
-                                       height=180, width=1)
+                                       height=140, width=1)
         self.sectors_spacer.pack(side=tk.LEFT)
 
         self.sectors_container = tk.Frame(self.sectors_outer_frame,
                                           bg=self.colors['card_bg'],
                                           width=600,
-                                          height=180)
+                                          height=140)
         self.sectors_container.pack(side=tk.LEFT, anchor='center')
         self.sectors_container.pack_propagate(False)
 
         # Buttons for add/clear sectors
         btn_frame = tk.Frame(content_column, bg=self.colors['card_bg'], width=620)
-        btn_frame.pack(anchor='center', pady=(4, 2))
+        btn_frame.pack(anchor='center', pady=(2, 4))
         btn_frame.pack_propagate(False)
         btn_frame.grid_columnconfigure(0, weight=1)
         btn_frame.grid_columnconfigure(3, weight=1)
