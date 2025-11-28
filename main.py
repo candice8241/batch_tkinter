@@ -111,19 +111,25 @@ class XRDProcessingGUI(GUIBase):
 
         # Debounced resize tracking to prevent rapid repaints that can cause flicker
         self._canvas_resize_job = None
+        self._pending_canvas_width = None
 
-        def refresh_scrollregion(width=None):
-            # Apply pending width change and refresh scroll region once
-            if width is not None:
-                canvas.itemconfig(canvas_window, width=width)
+        def refresh_scrollregion():
+            width = self._pending_canvas_width
+            if width is None:
+                width = canvas.winfo_width()
+            else:
+                self._pending_canvas_width = None
+            canvas.itemconfig(canvas_window, width=width)
             canvas.configure(scrollregion=canvas.bbox("all"))
             self._canvas_resize_job = None
 
         def queue_refresh(width=None):
             # Cancel any pending refresh to avoid repeated redraw during fast resizes
+            if width is not None:
+                self._pending_canvas_width = width
             if self._canvas_resize_job is not None:
                 self.root.after_cancel(self._canvas_resize_job)
-            self._canvas_resize_job = self.root.after(30, lambda w=width: refresh_scrollregion(w))
+            self._canvas_resize_job = self.root.after(80, refresh_scrollregion)
 
         canvas_window = canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
 
@@ -132,9 +138,11 @@ class XRDProcessingGUI(GUIBase):
             lambda e: queue_refresh()
         )
 
-        def on_canvas_configure(event):
-            queue_refresh(event.width)
-        canvas.bind('<Configure>', on_canvas_configure)
+        def on_root_configure(event):
+            if event.widget is self.root:
+                queue_refresh(event.width - 2)
+
+        self.root.bind('<Configure>', on_root_configure)
 
         canvas.configure(yscrollcommand=scrollbar.set)
 
