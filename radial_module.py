@@ -754,16 +754,13 @@ class AzimuthalIntegrationModule(GUIBase):
         right_outer.pack(side=tk.LEFT, fill=tk.Y)
         right_outer.pack_propagate(False)
 
-        # Create vertical centering container
+        # Container anchored to the top so controls align with the left unit row
         center_container = tk.Frame(right_outer, bg=self.colors['card_bg'])
-        center_container.pack(fill=tk.BOTH, expand=True)
+        center_container.pack(fill=tk.BOTH, expand=True, anchor='n', pady=(6, 0))
 
-        # Top padding
-        tk.Frame(center_container, bg=self.colors['card_bg']).pack(expand=True)
-
-        # Content area (horizontally and vertically centered)
+        # Content area (anchored to the top)
         right_section = tk.Frame(center_container, bg=self.colors['card_bg'])
-        right_section.pack()
+        right_section.pack(anchor='n')
 
         # Azimuthal settings outer border frame
         azimuthal_border = tk.Frame(right_section, bg=self.colors['card_bg'],
@@ -1570,10 +1567,14 @@ class AzimuthalIntegrationModule(GUIBase):
 
         # Main container
         self.custom_center_all = tk.Frame(parent_container, bg=self.colors['card_bg'])
-        self.custom_center_all.pack(expand=True, anchor='center')
+        self.custom_center_all.pack(fill=tk.BOTH, expand=True, anchor='n')
+
+        # Keep the custom-sector controls pinned toward the top so buttons remain visible
+        content_column = tk.Frame(self.custom_center_all, bg=self.colors['card_bg'])
+        content_column.pack(anchor='n')
 
         # Bin mode toggle
-        bin_toggle_frame = tk.Frame(self.custom_center_all, bg=self.colors['card_bg'])
+        bin_toggle_frame = tk.Frame(content_column, bg=self.colors['card_bg'])
         bin_toggle_frame.pack(pady=(0, 8), anchor='center')
 
         tk.Checkbutton(bin_toggle_frame,
@@ -1584,29 +1585,40 @@ class AzimuthalIntegrationModule(GUIBase):
                        command=self._update_custom_sectors_display).pack()
 
         # Sectors container
-        sectors_outer_frame = tk.Frame(self.custom_center_all, bg=self.colors['card_bg'])
-        sectors_outer_frame.pack(pady=(0, 15), anchor='center')
+        self.sectors_outer_frame = tk.Frame(content_column,
+                                            bg=self.colors['card_bg'],
+                                            height=150,
+                                            width=620)
+        self.sectors_outer_frame.pack(pady=(0, 10), anchor='center')
+        self.sectors_outer_frame.pack_propagate(False)
 
-        self.sectors_spacer = tk.Frame(sectors_outer_frame, bg=self.colors['card_bg'],
-                                       height=180, width=1)
+        self.sectors_spacer = tk.Frame(self.sectors_outer_frame, bg=self.colors['card_bg'],
+                                       height=140, width=1)
         self.sectors_spacer.pack(side=tk.LEFT)
 
-        self.sectors_container = tk.Frame(sectors_outer_frame, bg=self.colors['card_bg'])
+        self.sectors_container = tk.Frame(self.sectors_outer_frame,
+                                          bg=self.colors['card_bg'],
+                                          width=600,
+                                          height=140)
         self.sectors_container.pack(side=tk.LEFT, anchor='center')
+        self.sectors_container.pack_propagate(False)
 
         # Buttons for add/clear sectors
-        btn_frame = tk.Frame(self.custom_center_all, bg=self.colors['card_bg'])
-        btn_frame.pack(anchor='center', pady=(10, 0))
+        btn_frame = tk.Frame(content_column, bg=self.colors['card_bg'], width=620)
+        btn_frame.pack(anchor='center', pady=(2, 4))
+        btn_frame.pack_propagate(False)
+        btn_frame.grid_columnconfigure(0, weight=1)
+        btn_frame.grid_columnconfigure(3, weight=1)
 
         tk.Button(btn_frame, text="🐾 Add Sector", command=self._add_sector,
                  bg='#D8A7D8', fg='white',
                  font=('Arial', 8, 'bold'), relief='flat',
-                 padx=5, pady=5, cursor='hand2').pack(side=tk.LEFT, padx=10)
+                 padx=12, pady=6, cursor='hand2', width=12).grid(row=0, column=1, padx=10)
 
         tk.Button(btn_frame, text="🍉 Clear All", command=self._clear_all_sectors,
                  bg='#FF9FB5', fg='white',
                  font=('Arial', 8, 'bold'), relief='flat',
-                 padx=5, pady=5, cursor='hand2').pack(side=tk.LEFT, padx=10)
+                 padx=12, pady=6, cursor='hand2', width=12).grid(row=0, column=2, padx=10)
 
         for idx in range(len(self.custom_sectors)):
             self._create_sector_row(idx)

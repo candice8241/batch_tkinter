@@ -242,10 +242,21 @@ class PowderXRDModule(GUIBase):
         # Track interactive EoS window
         self.interactive_eos_window = None
 
+        # Ensure we only run the expensive prebuild once
+        self._interactive_windows_prebuilt = False
+        self._interactive_prebuild_job = None
+
         # Track running threads for cleanup
         self.running_threads = []
         self._is_shutting_down = False
         self._cleanup_lock = threading.Lock()
+
+        # Ensure heavy interactive windows are constructed as soon as the
+        # event loop is ready so the first manual open does not rebuild UI
+        # on demand (which caused the visible flash).
+        self._interactive_prebuild_job = self.root.after_idle(
+            self.prebuild_interactive_windows
+        )
 
     def _init_variables(self):
         """Initialize all Tkinter variables - THREAD SAFE with explicit master binding"""
@@ -435,6 +446,134 @@ class PowderXRDModule(GUIBase):
 
         main_frame.pack(fill=tk.BOTH, expand=True)
         self.root.update_idletasks()
+
+        # Prebuild heavy secondary windows so their first open is immediate
+        self.prebuild_interactive_windows()
+
+    def prebuild_interactive_windows(self, force=False):
+        """Create interactive fitting and EoS windows ahead of user requests."""
+        # Cancel any pending scheduled job now that we're running
+        if self._interactive_prebuild_job is not None:
+            try:
+                self.root.after_cancel(self._interactive_prebuild_job)
+            except Exception:
+                pass
+            self._interactive_prebuild_job = None
+
+        if self._interactive_windows_prebuilt and not force:
+            # If the flag is set but a window was destroyed, rebuild it.
+            if self.interactive_fitting_window is None or not self.interactive_fitting_window.winfo_exists():
+                self._interactive_windows_prebuilt = False
+            if self.interactive_eos_window is None or not self.interactive_eos_window.winfo_exists():
+                self._interactive_windows_prebuilt = False
+
+        if self._interactive_windows_prebuilt and not force:
+            return
+
+        # Build both windows while they are fully hidden to avoid any visual flash
+        self._build_interactive_fitting_window()
+        self._build_interactive_eos_window()
+        self._interactive_windows_prebuilt = True
+
+    def _build_interactive_fitting_window(self):
+        """Instantiate the interactive fitting UI in a hidden window for reuse."""
+        if self.interactive_fitting_window is not None and self.interactive_fitting_window.winfo_exists():
+            return self.interactive_fitting_window
+
+        window = tk.Toplevel(self.root)
+        window.withdraw()
+        window.transient(self.root)
+        window.attributes("-toolwindow", True)
+        window.title("Interactive Peak Fitting - Enhanced")
+
+        window_width = 1400
+        window_height = 850
+        screen_width = window.winfo_screenwidth()
+        screen_height = window.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+        icon_paths = [
+            "xrd_sheep_icon.ico",
+            "xrd_peak_fitting_icon.ico",
+            os.path.join(os.path.dirname(__file__), "icon.ico"),
+            r"D:\\HEPS\\ID31\\dioptas_data\\github_felicity\\batch\\HP_full_package\\ChatGPT Image.ico"
+        ]
+
+        for icon_path in icon_paths:
+            if os.path.exists(icon_path):
+                try:
+                    window.iconbitmap(icon_path)
+                    break
+                except Exception:
+                    pass
+
+        PeakFittingGUI(window)
+
+        # Fully realize the UI off-screen, then hide it again so first open is instant
+        window.attributes("-alpha", 0.0)
+        window.deiconify()
+        window.update_idletasks()
+        window.withdraw()
+        window.attributes("-alpha", 1.0)
+
+        def on_closing():
+            # Hide without destroying so the taskbar icon does not flash and the
+            # widgets stay warm for the next open.
+            window.withdraw()
+            window.update_idletasks()
+            self.log("📊 Interactive fitting window hidden")
+
+        window.protocol("WM_DELETE_WINDOW", on_closing)
+        window.update_idletasks()
+
+        self.interactive_fitting_window = window
+        return window
+
+    def _build_interactive_eos_window(self):
+        """Instantiate the interactive EoS UI in a hidden window for reuse."""
+        if self.interactive_eos_window is not None and self.interactive_eos_window.winfo_exists():
+            return self.interactive_eos_window
+
+        window = tk.Toplevel(self.root)
+        window.withdraw()
+        window.transient(self.root)
+        window.attributes("-toolwindow", True)
+        window.title("Interactive EoS GUI")
+
+        window_width = 1480
+        window_height = 900
+        screen_width = window.winfo_screenwidth()
+        screen_height = window.winfo_screenheight()
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+
+        InteractiveEoSGUI(window)
+
+        # Realize layout invisibly so the first visible open uses prebuilt widgets
+        window.attributes("-alpha", 0.0)
+        window.deiconify()
+        window.update_idletasks()
+        window.withdraw()
+        window.attributes("-alpha", 1.0)
+
+        def on_close():
+            try:
+                # Hide immediately to avoid a visible flash in the taskbar while
+                # keeping the built widgets alive for instant reuse.
+                window.withdraw()
+                window.update_idletasks()
+                self.log("🌌 Interactive EoS GUI hidden")
+            finally:
+                self.interactive_eos_window = window
+
+        window.protocol("WM_DELETE_WINDOW", on_close)
+        window.update_idletasks()
+
+        self.interactive_eos_window = window
+        return window
 
     def create_file_picker_with_spinbox_btn(self, parent, label_text, var, filetypes, pattern=False):
         """Create file picker with spinbox-style button"""
@@ -886,89 +1025,33 @@ class PowderXRDModule(GUIBase):
 
     def open_interactive_fitting(self):
         """Open the interactive peak fitting GUI in a new window"""
-        if self.interactive_fitting_window is not None:
-            try:
-                if self.interactive_fitting_window.winfo_exists():
-                    self.interactive_fitting_window.lift()
-                    self.interactive_fitting_window.focus_force()
-                    self.log("📊 Interactive fitting window brought to front")
-                    return
-            except:
-                pass
+        # Guarantee the UI has been built even if the idle prebuild has not run yet
+        self.prebuild_interactive_windows()
+        window = self._build_interactive_fitting_window()
 
-        self.interactive_fitting_window = tk.Toplevel(self.root)
-        self.interactive_fitting_window.title("Interactive Peak Fitting - Enhanced")
-
-        window_width = 1400
-        window_height = 850
-        screen_width = self.interactive_fitting_window.winfo_screenwidth()
-        screen_height = self.interactive_fitting_window.winfo_screenheight()
-        x = (screen_width - window_width) // 2
-        y = (screen_height - window_height) // 2
-        self.interactive_fitting_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
-        # Set icon using the same logic as half_auto_fitting
-        icon_paths = [
-            "xrd_sheep_icon.ico",
-            "xrd_peak_fitting_icon.ico",
-            os.path.join(os.path.dirname(__file__), "icon.ico"),
-            r"D:\HEPS\ID31\dioptas_data\github_felicity\batch\HP_full_package\ChatGPT Image.ico"
-        ]
-
-        for icon_path in icon_paths:
-            if os.path.exists(icon_path):
-                try:
-                    self.interactive_fitting_window.iconbitmap(icon_path)
-                    break
-                except:
-                    pass
-
-        fitting_app = PeakFittingGUI(self.interactive_fitting_window)
+        try:
+            window.deiconify()
+            window.lift()
+            window.focus_force()
+        except Exception:
+            pass
 
         self.log("✨ Interactive peak fitting GUI opened in new window")
 
-        def on_closing():
-            self.interactive_fitting_window.destroy()
-            self.interactive_fitting_window = None
-            self.log("📊 Interactive fitting window closed")
-
-        self.interactive_fitting_window.protocol("WM_DELETE_WINDOW", on_closing)
-
     def open_interactive_eos_gui(self):
         """Open the interactive EoS GUI in a separate window"""
-        if self.interactive_eos_window is not None:
-            try:
-                if self.interactive_eos_window.winfo_exists():
-                    self.interactive_eos_window.lift()
-                    self.interactive_eos_window.focus_force()
-                    self.log("🌌 Interactive EoS GUI brought to front")
-                    return
-            except Exception:
-                pass
+        # Guarantee the UI has been built even if the idle prebuild has not run yet
+        self.prebuild_interactive_windows()
+        window = self._build_interactive_eos_window()
 
-        self.interactive_eos_window = tk.Toplevel(self.root)
-        self.interactive_eos_window.title("Interactive EoS GUI")
+        try:
+            window.deiconify()
+            window.lift()
+            window.focus_force()
+        except Exception:
+            pass
 
-        # Center window on screen
-        window_width = 1480
-        window_height = 900
-        screen_width = self.interactive_eos_window.winfo_screenwidth()
-        screen_height = self.interactive_eos_window.winfo_screenheight()
-        x = (screen_width - window_width) // 2
-        y = (screen_height - window_height) // 2
-        self.interactive_eos_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
-
-        # Initialize the interactive EoS GUI within the Toplevel
-        InteractiveEoSGUI(self.interactive_eos_window)
-
-        def on_close():
-            try:
-                self.interactive_eos_window.destroy()
-            finally:
-                self.interactive_eos_window = None
-                self.log("🌌 Interactive EoS GUI closed")
-
-        self.interactive_eos_window.protocol("WM_DELETE_WINDOW", on_close)
+        self.log("✨ Interactive EoS GUI opened in new window")
 
     def setup_analysis_module(self, parent_frame):
         """Analysis section currently hosts no additional controls."""

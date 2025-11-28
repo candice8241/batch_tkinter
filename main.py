@@ -29,6 +29,9 @@ class XRDProcessingGUI(GUIBase):
         """
         super().__init__()
         self.root = root
+        # Hide the window while heavy UI construction occurs to avoid visible flashes
+        # when the app first appears.
+        self.root.withdraw()
         self.root.title("XRD Data Post-Processing")
         self.root.geometry("1100x950")
         self.root.resizable(True, True)
@@ -47,6 +50,13 @@ class XRDProcessingGUI(GUIBase):
         self.powder_module = None
         self.radial_module = None
         self.single_crystal_module = None
+
+        # Containers for each module (prebuilt and stacked to avoid flicker)
+        self.module_frames = {
+            "powder": None,
+            "single": None,
+            "radial": None
+        }
 
         # Setup UI
         self.setup_ui()
@@ -95,17 +105,44 @@ class XRDProcessingGUI(GUIBase):
         scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
 
         self.scrollable_frame = tk.Frame(canvas, bg=self.colors['bg'])
+        # Ensure stacked frames can expand to the available width/height
+        self.scrollable_frame.grid_rowconfigure(0, weight=1)
+        self.scrollable_frame.grid_columnconfigure(0, weight=1)
 
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
+        # Debounced resize tracking to prevent rapid repaints that can cause flicker
+        self._canvas_resize_job = None
+        self._pending_canvas_width = None
+
+        def refresh_scrollregion():
+            width = self._pending_canvas_width
+            if width is None:
+                width = canvas.winfo_width()
+            else:
+                self._pending_canvas_width = None
+            canvas.itemconfig(canvas_window, width=width)
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            self._canvas_resize_job = None
+
+        def queue_refresh(width=None):
+            # Cancel any pending refresh to avoid repeated redraw during fast resizes
+            if width is not None:
+                self._pending_canvas_width = width
+            if self._canvas_resize_job is not None:
+                self.root.after_cancel(self._canvas_resize_job)
+            self._canvas_resize_job = self.root.after(80, refresh_scrollregion)
 
         canvas_window = canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
 
-        def on_canvas_configure(event):
-            canvas.itemconfig(canvas_window, width=event.width)
-        canvas.bind('<Configure>', on_canvas_configure)
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: queue_refresh()
+        )
+
+        def on_root_configure(event):
+            if event.widget is self.root:
+                queue_refresh(event.width - 2)
+
+        self.root.bind('<Configure>', on_root_configure)
 
         canvas.configure(yscrollcommand=scrollbar.set)
 
@@ -119,8 +156,53 @@ class XRDProcessingGUI(GUIBase):
 
         self.canvas = canvas
 
+        # Prebuild module UIs so the first visible load is already prepared
+        self.prebuild_modules()
+
+        # Warm up any heavy interactive windows once the loop starts so their
+        # first visible open reuses already-built widgets even if idle
+        # scheduling was delayed during startup.
+        self.root.after(50, self._warm_interactive_windows)
+
         # Show powder tab by default
         self.switch_tab("powder")
+
+        # Reveal the fully built UI at once to prevent seeing intermediate states
+        self.root.update_idletasks()
+        self.root.deiconify()
+
+    def _warm_interactive_windows(self):
+        """Ensure interactive secondary windows are prebuilt after startup."""
+        try:
+            if self.powder_module is not None:
+                self.powder_module.prebuild_interactive_windows(force=True)
+        except Exception:
+            pass
+
+    def _ensure_frame(self, name):
+        if self.module_frames[name] is None:
+            frame = tk.Frame(self.scrollable_frame, bg=self.colors['bg'])
+            frame.grid(row=0, column=0, sticky="nsew")
+            self.module_frames[name] = frame
+        return self.module_frames[name]
+
+    def prebuild_modules(self):
+        """Construct all module frames and their UIs ahead of first use to avoid initial flash."""
+        powder_frame = self._ensure_frame("powder")
+        if self.powder_module is None:
+            self.powder_module = PowderXRDModule(powder_frame, self.root)
+            self.powder_module.setup_ui()
+            self.powder_module.prebuild_interactive_windows()
+
+        radial_frame = self._ensure_frame("radial")
+        if self.radial_module is None:
+            self.radial_module = AzimuthalIntegrationModule(radial_frame, self.root)
+            self.radial_module.setup_ui()
+
+        single_frame = self._ensure_frame("single")
+        if self.single_crystal_module is None:
+            self.single_crystal_module = SingleCrystalModule(single_frame, self.root)
+            self.single_crystal_module.setup_ui()
 
     def switch_tab(self, tab_name):
         """
@@ -134,25 +216,35 @@ class XRDProcessingGUI(GUIBase):
         self.single_tab.set_active(tab_name == "single")
         self.radial_tab.set_active(tab_name == "radial")
 
-        # Clear existing content
-        for widget in self.scrollable_frame.winfo_children():
-            widget.destroy()
+        # Lower all module frames instead of destroying/unpacking to avoid redraw flashes
+        for frame in self.module_frames.values():
+            if frame is not None:
+                frame.lower()
 
-        # Load appropriate module
+        target_frame = None
+
+        # Load appropriate module (create once, then just re-pack to avoid flicker)
         if tab_name == "powder":
+            target_frame = self._ensure_frame("powder")
             if self.powder_module is None:
-                self.powder_module = PowderXRDModule(self.scrollable_frame, self.root)
-            self.powder_module.setup_ui()
+                self.powder_module = PowderXRDModule(target_frame, self.root)
+                self.powder_module.setup_ui()
 
         elif tab_name == "radial":
+            target_frame = self._ensure_frame("radial")
             if self.radial_module is None:
-                self.radial_module = AzimuthalIntegrationModule(self.scrollable_frame, self.root)
-            self.radial_module.setup_ui()
+                self.radial_module = AzimuthalIntegrationModule(target_frame, self.root)
+                self.radial_module.setup_ui()
 
         elif tab_name == "single":
+            target_frame = self._ensure_frame("single")
             if self.single_crystal_module is None:
-                self.single_crystal_module = SingleCrystalModule(self.scrollable_frame, self.root)
-            self.single_crystal_module.setup_ui()
+                self.single_crystal_module = SingleCrystalModule(target_frame, self.root)
+                self.single_crystal_module.setup_ui()
+
+        if target_frame is not None:
+            target_frame.lift()
+            self.root.update_idletasks()
 
 
 def launch_main_app():
