@@ -1570,10 +1570,14 @@ class AzimuthalIntegrationModule(GUIBase):
 
         # Main container
         self.custom_center_all = tk.Frame(parent_container, bg=self.colors['card_bg'])
-        self.custom_center_all.pack(expand=True, anchor='center')
+        self.custom_center_all.pack(fill=tk.BOTH, expand=True, anchor='n')
+
+        # Keep the custom-sector controls pinned toward the top so buttons remain visible
+        content_column = tk.Frame(self.custom_center_all, bg=self.colors['card_bg'])
+        content_column.pack(anchor='n')
 
         # Bin mode toggle
-        bin_toggle_frame = tk.Frame(self.custom_center_all, bg=self.colors['card_bg'])
+        bin_toggle_frame = tk.Frame(content_column, bg=self.colors['card_bg'])
         bin_toggle_frame.pack(pady=(0, 8), anchor='center')
 
         tk.Checkbutton(bin_toggle_frame,
@@ -1584,7 +1588,7 @@ class AzimuthalIntegrationModule(GUIBase):
                        command=self._update_custom_sectors_display).pack()
 
         # Sectors container
-        self.sectors_outer_frame = tk.Frame(self.custom_center_all,
+        self.sectors_outer_frame = tk.Frame(content_column,
                                             bg=self.colors['card_bg'],
                                             height=200,
                                             width=620)
@@ -1603,8 +1607,8 @@ class AzimuthalIntegrationModule(GUIBase):
         self.sectors_container.pack_propagate(False)
 
         # Buttons for add/clear sectors
-        btn_frame = tk.Frame(self.custom_center_all, bg=self.colors['card_bg'], width=620)
-        btn_frame.pack(anchor='center', pady=(10, 0))
+        btn_frame = tk.Frame(content_column, bg=self.colors['card_bg'], width=620)
+        btn_frame.pack(anchor='center', pady=(4, 2))
         btn_frame.pack_propagate(False)
         btn_frame.grid_columnconfigure(0, weight=1)
         btn_frame.grid_columnconfigure(3, weight=1)
