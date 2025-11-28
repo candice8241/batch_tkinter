@@ -250,6 +250,11 @@ class PowderXRDModule(GUIBase):
         self._is_shutting_down = False
         self._cleanup_lock = threading.Lock()
 
+        # Ensure heavy interactive windows are constructed as soon as the
+        # event loop is ready so the first manual open does not rebuild UI
+        # on demand (which caused the visible flash).
+        self.root.after_idle(self.prebuild_interactive_windows)
+
     def _init_variables(self):
         """Initialize all Tkinter variables - THREAD SAFE with explicit master binding"""
         # Integration and fitting variables

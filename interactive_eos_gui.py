@@ -318,7 +318,8 @@ class InteractiveEoSGUI:
         """Load data from CSV file"""
         filename = filedialog.askopenfilename(
             title="Select CSV file",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")]
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            parent=self.root
         )
 
         if not filename:
