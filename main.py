@@ -135,12 +135,25 @@ class XRDProcessingGUI(GUIBase):
         # Prebuild module UIs so the first visible load is already prepared
         self.prebuild_modules()
 
+        # Warm up any heavy interactive windows once the loop starts so their
+        # first visible open reuses already-built widgets even if idle
+        # scheduling was delayed during startup.
+        self.root.after(50, self._warm_interactive_windows)
+
         # Show powder tab by default
         self.switch_tab("powder")
 
         # Reveal the fully built UI at once to prevent seeing intermediate states
         self.root.update_idletasks()
         self.root.deiconify()
+
+    def _warm_interactive_windows(self):
+        """Ensure interactive secondary windows are prebuilt after startup."""
+        try:
+            if self.powder_module is not None:
+                self.powder_module.prebuild_interactive_windows(force=True)
+        except Exception:
+            pass
 
     def _ensure_frame(self, name):
         if self.module_frames[name] is None:

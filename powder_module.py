@@ -450,7 +450,7 @@ class PowderXRDModule(GUIBase):
         # Prebuild heavy secondary windows so their first open is immediate
         self.prebuild_interactive_windows()
 
-    def prebuild_interactive_windows(self):
+    def prebuild_interactive_windows(self, force=False):
         """Create interactive fitting and EoS windows ahead of user requests."""
         # Cancel any pending scheduled job now that we're running
         if self._interactive_prebuild_job is not None:
@@ -460,7 +460,14 @@ class PowderXRDModule(GUIBase):
                 pass
             self._interactive_prebuild_job = None
 
-        if self._interactive_windows_prebuilt:
+        if self._interactive_windows_prebuilt and not force:
+            # If the flag is set but a window was destroyed, rebuild it.
+            if self.interactive_fitting_window is None or not self.interactive_fitting_window.winfo_exists():
+                self._interactive_windows_prebuilt = False
+            if self.interactive_eos_window is None or not self.interactive_eos_window.winfo_exists():
+                self._interactive_windows_prebuilt = False
+
+        if self._interactive_windows_prebuilt and not force:
             return
 
         # Build both windows while they are fully hidden to avoid any visual flash
@@ -475,6 +482,8 @@ class PowderXRDModule(GUIBase):
 
         window = tk.Toplevel(self.root)
         window.withdraw()
+        window.transient(self.root)
+        window.attributes("-toolwindow", True)
         window.title("Interactive Peak Fitting - Enhanced")
 
         window_width = 1400
@@ -512,7 +521,7 @@ class PowderXRDModule(GUIBase):
         def on_closing():
             # Hide without destroying so the taskbar icon does not flash and the
             # widgets stay warm for the next open.
-            window.after_idle(window.withdraw)
+            window.withdraw()
             window.update_idletasks()
             self.log("📊 Interactive fitting window hidden")
 
@@ -529,6 +538,8 @@ class PowderXRDModule(GUIBase):
 
         window = tk.Toplevel(self.root)
         window.withdraw()
+        window.transient(self.root)
+        window.attributes("-toolwindow", True)
         window.title("Interactive EoS GUI")
 
         window_width = 1480
@@ -550,9 +561,9 @@ class PowderXRDModule(GUIBase):
 
         def on_close():
             try:
-                # Hide on idle to avoid a visible flash in the taskbar while
+                # Hide immediately to avoid a visible flash in the taskbar while
                 # keeping the built widgets alive for instant reuse.
-                window.after_idle(window.withdraw)
+                window.withdraw()
                 window.update_idletasks()
                 self.log("🌌 Interactive EoS GUI hidden")
             finally:
