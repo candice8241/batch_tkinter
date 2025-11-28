@@ -754,16 +754,13 @@ class AzimuthalIntegrationModule(GUIBase):
         right_outer.pack(side=tk.LEFT, fill=tk.Y)
         right_outer.pack_propagate(False)
 
-        # Create vertical centering container
+        # Container anchored to the top so controls align with the left unit row
         center_container = tk.Frame(right_outer, bg=self.colors['card_bg'])
-        center_container.pack(fill=tk.BOTH, expand=True)
+        center_container.pack(fill=tk.BOTH, expand=True, anchor='n', pady=(6, 0))
 
-        # Top padding
-        tk.Frame(center_container, bg=self.colors['card_bg']).pack(expand=True)
-
-        # Content area (horizontally and vertically centered)
+        # Content area (anchored to the top)
         right_section = tk.Frame(center_container, bg=self.colors['card_bg'])
-        right_section.pack()
+        right_section.pack(anchor='n')
 
         # Azimuthal settings outer border frame
         azimuthal_border = tk.Frame(right_section, bg=self.colors['card_bg'],
