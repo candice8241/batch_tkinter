@@ -109,15 +109,31 @@ class XRDProcessingGUI(GUIBase):
         self.scrollable_frame.grid_rowconfigure(0, weight=1)
         self.scrollable_frame.grid_columnconfigure(0, weight=1)
 
-        self.scrollable_frame.bind(
-            "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
-        )
+        # Debounced resize tracking to prevent rapid repaints that can cause flicker
+        self._canvas_resize_job = None
+
+        def refresh_scrollregion(width=None):
+            # Apply pending width change and refresh scroll region once
+            if width is not None:
+                canvas.itemconfig(canvas_window, width=width)
+            canvas.configure(scrollregion=canvas.bbox("all"))
+            self._canvas_resize_job = None
+
+        def queue_refresh(width=None):
+            # Cancel any pending refresh to avoid repeated redraw during fast resizes
+            if self._canvas_resize_job is not None:
+                self.root.after_cancel(self._canvas_resize_job)
+            self._canvas_resize_job = self.root.after(30, lambda w=width: refresh_scrollregion(w))
 
         canvas_window = canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
 
+        self.scrollable_frame.bind(
+            "<Configure>",
+            lambda e: queue_refresh()
+        )
+
         def on_canvas_configure(event):
-            canvas.itemconfig(canvas_window, width=event.width)
+            queue_refresh(event.width)
         canvas.bind('<Configure>', on_canvas_configure)
 
         canvas.configure(yscrollcommand=scrollbar.set)
