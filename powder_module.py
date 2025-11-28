@@ -242,6 +242,9 @@ class PowderXRDModule(GUIBase):
         # Track interactive EoS window
         self.interactive_eos_window = None
 
+        # Ensure we only run the expensive prebuild once
+        self._interactive_windows_prebuilt = False
+
         # Track running threads for cleanup
         self.running_threads = []
         self._is_shutting_down = False
@@ -441,8 +444,13 @@ class PowderXRDModule(GUIBase):
 
     def prebuild_interactive_windows(self):
         """Create interactive fitting and EoS windows ahead of user requests."""
+        if self._interactive_windows_prebuilt:
+            return
+
+        # Build both windows while they are fully hidden to avoid any visual flash
         self._build_interactive_fitting_window()
         self._build_interactive_eos_window()
+        self._interactive_windows_prebuilt = True
 
     def _build_interactive_fitting_window(self):
         """Instantiate the interactive fitting UI in a hidden window for reuse."""
@@ -478,6 +486,13 @@ class PowderXRDModule(GUIBase):
 
         PeakFittingGUI(window)
 
+        # Fully realize the UI off-screen, then hide it again so first open is instant
+        window.attributes("-alpha", 0.0)
+        window.deiconify()
+        window.update_idletasks()
+        window.withdraw()
+        window.attributes("-alpha", 1.0)
+
         def on_closing():
             window.withdraw()
             self.log("📊 Interactive fitting window hidden")
@@ -506,6 +521,13 @@ class PowderXRDModule(GUIBase):
         window.geometry(f"{window_width}x{window_height}+{x}+{y}")
 
         InteractiveEoSGUI(window)
+
+        # Realize layout invisibly so the first visible open uses prebuilt widgets
+        window.attributes("-alpha", 0.0)
+        window.deiconify()
+        window.update_idletasks()
+        window.withdraw()
+        window.attributes("-alpha", 1.0)
 
         def on_close():
             try:
