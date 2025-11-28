@@ -244,6 +244,7 @@ class PowderXRDModule(GUIBase):
 
         # Ensure we only run the expensive prebuild once
         self._interactive_windows_prebuilt = False
+        self._interactive_prebuild_job = None
 
         # Track running threads for cleanup
         self.running_threads = []
@@ -253,7 +254,9 @@ class PowderXRDModule(GUIBase):
         # Ensure heavy interactive windows are constructed as soon as the
         # event loop is ready so the first manual open does not rebuild UI
         # on demand (which caused the visible flash).
-        self.root.after_idle(self.prebuild_interactive_windows)
+        self._interactive_prebuild_job = self.root.after_idle(
+            self.prebuild_interactive_windows
+        )
 
     def _init_variables(self):
         """Initialize all Tkinter variables - THREAD SAFE with explicit master binding"""
@@ -449,6 +452,14 @@ class PowderXRDModule(GUIBase):
 
     def prebuild_interactive_windows(self):
         """Create interactive fitting and EoS windows ahead of user requests."""
+        # Cancel any pending scheduled job now that we're running
+        if self._interactive_prebuild_job is not None:
+            try:
+                self.root.after_cancel(self._interactive_prebuild_job)
+            except Exception:
+                pass
+            self._interactive_prebuild_job = None
+
         if self._interactive_windows_prebuilt:
             return
 
@@ -499,7 +510,10 @@ class PowderXRDModule(GUIBase):
         window.attributes("-alpha", 1.0)
 
         def on_closing():
-            window.withdraw()
+            # Hide without destroying so the taskbar icon does not flash and the
+            # widgets stay warm for the next open.
+            window.after_idle(window.withdraw)
+            window.update_idletasks()
             self.log("📊 Interactive fitting window hidden")
 
         window.protocol("WM_DELETE_WINDOW", on_closing)
@@ -536,7 +550,10 @@ class PowderXRDModule(GUIBase):
 
         def on_close():
             try:
-                window.withdraw()
+                # Hide on idle to avoid a visible flash in the taskbar while
+                # keeping the built widgets alive for instant reuse.
+                window.after_idle(window.withdraw)
+                window.update_idletasks()
                 self.log("🌌 Interactive EoS GUI hidden")
             finally:
                 self.interactive_eos_window = window
@@ -997,6 +1014,8 @@ class PowderXRDModule(GUIBase):
 
     def open_interactive_fitting(self):
         """Open the interactive peak fitting GUI in a new window"""
+        # Guarantee the UI has been built even if the idle prebuild has not run yet
+        self.prebuild_interactive_windows()
         window = self._build_interactive_fitting_window()
 
         try:
@@ -1010,6 +1029,8 @@ class PowderXRDModule(GUIBase):
 
     def open_interactive_eos_gui(self):
         """Open the interactive EoS GUI in a separate window"""
+        # Guarantee the UI has been built even if the idle prebuild has not run yet
+        self.prebuild_interactive_windows()
         window = self._build_interactive_eos_window()
 
         try:
